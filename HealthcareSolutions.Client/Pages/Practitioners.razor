@@ -1,0 +1,803 @@
+﻿@page "/practitioners"
+
+@using HealthcareSolutions.Client.Models
+@using HealthcareSolutions.Client.Shared
+
+@inject AuthService AuthService
+@inject PractitionerApiService PractitionerApiService
+
+<PageTitle>Practitioners</PageTitle>
+
+<div class="hs-page">
+
+@if (!AuthService.IsAuthenticated)
+{
+    <div class="hs-access-denied hs-glass-card">
+
+        <div class="hs-empty-icon">
+            🔒
+        </div>
+
+        <h2>Access denied</h2>
+
+        <p>
+            Please log in to access practitioner management.
+        </p>
+
+    </div>
+}
+else if (!CanAccess)
+{
+    <div class="hs-access-denied hs-glass-card">
+
+        <div class="hs-empty-icon">
+            🔒
+        </div>
+
+        <h2>Access denied</h2>
+
+        <p>
+            You do not have permission to access practitioners.
+        </p>
+
+    </div>
+}
+else
+{
+    <div class="hs-page-header">
+
+        <div>
+            <div class="hs-eyebrow">
+                Healthcare management
+            </div>
+
+            <h1>Practitioners</h1>
+
+            <p>
+                Manage healthcare practitioners and their availability.
+            </p>
+        </div>
+
+        @if (IsAdmin)
+        {
+            <button class="btn btn-primary"
+                    @onclick="OpenCreateModal"
+                    disabled="@saving">
+
+                + Add Practitioner
+
+            </button>
+        }
+
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(successMessage))
+    {
+        <div class="alert alert-success hs-page-alert">
+            @successMessage
+        </div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(errorMessage))
+    {
+        <div class="alert alert-danger hs-page-alert">
+
+            <strong>Unable to complete the request.</strong>
+
+            <div>
+                @errorMessage
+            </div>
+
+            <button type="button"
+                    class="btn btn-secondary mt-2"
+                    @onclick="LoadPractitioners"
+                    disabled="@loading">
+
+                @(loading ? "Trying Again..." : "Try Again")
+
+            </button>
+
+        </div>
+    }
+
+    @if (loading)
+    {
+        <div class="hs-page-loading hs-glass-card">
+
+            <div class="hs-spinner"></div>
+
+            <p>
+                Loading practitioners...
+            </p>
+
+        </div>
+    }
+    else
+    {
+        <div class="hs-summary-row">
+
+            <div class="hs-summary-card hs-glass-card">
+
+                <div class="hs-summary-icon">
+                    👨‍⚕️
+                </div>
+
+                <div>
+                    <div class="hs-summary-value">
+                        @practitioners.Count
+                    </div>
+
+                    <div class="hs-summary-label">
+                        Total practitioners
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="hs-summary-card hs-glass-card">
+
+                <div class="hs-summary-icon">
+                    ✓
+                </div>
+
+                <div>
+                    <div class="hs-summary-value">
+                        @practitioners.Count(p => p.IsAvailable)
+                    </div>
+
+                    <div class="hs-summary-label">
+                        Available
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="hs-summary-card hs-glass-card">
+
+                <div class="hs-summary-icon">
+                    ⏸
+                </div>
+
+                <div>
+                    <div class="hs-summary-value">
+                        @practitioners.Count(p => !p.IsAvailable)
+                    </div>
+
+                    <div class="hs-summary-label">
+                        Unavailable
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="hs-table-card hs-glass-card">
+
+            <div class="hs-table-header">
+
+                <div>
+                    <h2>Practitioner Directory</h2>
+
+                    <p>
+                        View practitioner details and availability.
+                    </p>
+                </div>
+
+                <div class="hs-search">
+
+                    <span class="hs-search-icon">
+                        ⌕
+                    </span>
+
+                    <input class="form-control"
+                           placeholder="Search practitioners..."
+                           @bind="searchTerm" />
+
+                </div>
+
+            </div>
+
+            @if (FilteredPractitioners.Any())
+            {
+                <div class="hs-table-wrapper">
+
+                    <table class="hs-data-table">
+
+                        <thead>
+
+                            <tr>
+
+                                <th>Practitioner</th>
+                                <th>Specialty</th>
+                                <th>Availability</th>
+
+                                @if (IsAdmin)
+                                {
+                                    <th class="hs-action-column">
+                                        Actions
+                                    </th>
+                                }
+
+                            </tr>
+
+                        </thead>
+
+                        <tbody>
+
+                            @foreach (var practitioner in FilteredPractitioners)
+                            {
+                                <tr>
+
+                                    <td>
+
+                                        <div class="hs-patient-cell">
+
+                                            <div class="hs-patient-avatar">
+
+                                                @GetInitials(
+                                                    practitioner.FirstName,
+                                                    practitioner.LastName)
+
+                                            </div>
+
+                                            <div>
+
+                                                <strong>
+                                                    @practitioner.FirstName
+                                                    @practitioner.LastName
+                                                </strong>
+
+                                                <span class="hs-muted">
+                                                    Practitioner
+                                                    #@practitioner.PractitionerId
+                                                </span>
+
+                                            </div>
+
+                                        </div>
+
+                                    </td>
+
+                                    <td>
+
+                                        <span class="hs-data-badge badge-info">
+                                            @practitioner.Specialty
+                                        </span>
+
+                                    </td>
+
+                                    <td>
+
+                                        @if (practitioner.IsAvailable)
+                                        {
+                                            <span class="hs-data-badge badge-success">
+                                                Available
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="hs-data-badge badge-neutral">
+                                                Unavailable
+                                            </span>
+                                        }
+
+                                    </td>
+
+                                    @if (IsAdmin)
+                                    {
+                                        <td class="hs-action-column">
+
+                                            <button type="button"
+                                                    class="btn btn-secondary btn-small"
+                                                    @onclick="() => OpenEditModal(practitioner)"
+                                                    disabled="@saving">
+
+                                                Edit
+
+                                            </button>
+
+                                        </td>
+                                    }
+
+                                </tr>
+                            }
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+            }
+            else
+            {
+                <div class="hs-empty-state">
+
+                    <div class="hs-empty-icon">
+                        👨‍⚕️
+                    </div>
+
+                    @if (string.IsNullOrWhiteSpace(searchTerm))
+                    {
+                        <h3>No practitioners found</h3>
+
+                        <p>
+                            There are currently no practitioners registered.
+                        </p>
+
+                        @if (IsAdmin)
+                        {
+                            <button class="btn btn-primary"
+                                    @onclick="OpenCreateModal">
+
+                                Add Practitioner
+
+                            </button>
+                        }
+                    }
+                    else
+                    {
+                        <h3>No matching practitioners</h3>
+
+                        <p>
+                            Try a different practitioner name or specialty.
+                        </p>
+                    }
+
+                </div>
+            }
+
+        </div>
+    }
+}
+
+</div>
+
+@if (showModal)
+{ <div class="hs-modal-overlay">
+
+    <div class="hs-modal hs-patient-modal">
+
+        <div class="hs-modal-header">
+
+            <div>
+
+                <div class="hs-eyebrow">
+                    Practitioner management
+                </div>
+
+                <h2>
+                    @(isEditing
+                        ? "Edit Practitioner"
+                        : "Add Practitioner")
+                </h2>
+
+                <p>
+                    Enter the practitioner's professional details.
+                </p>
+
+            </div>
+
+            <button type="button"
+                    class="hs-modal-close"
+                    @onclick="CloseModal"
+                    disabled="@saving">
+
+                ×
+
+            </button>
+
+        </div>
+
+        <div class="hs-modal-body">
+
+            @if (!string.IsNullOrWhiteSpace(formErrorMessage))
+            {
+                <div class="alert alert-danger">
+                    @formErrorMessage
+                </div>
+            }
+
+            <div class="hs-form-grid">
+
+                <div class="form-group">
+
+                    <label>
+                        First Name
+                    </label>
+
+                    <input class="form-control"
+                           @bind="formModel.FirstName"
+                           disabled="@saving" />
+
+                </div>
+
+                <div class="form-group">
+
+                    <label>
+                        Last Name
+                    </label>
+
+                    <input class="form-control"
+                           @bind="formModel.LastName"
+                           disabled="@saving" />
+
+                </div>
+
+                <div class="form-group hs-form-full">
+
+                    <label>
+                        Specialty
+                    </label>
+
+                    <input class="form-control"
+                           @bind="formModel.Specialty"
+                           disabled="@saving" />
+
+                </div>
+
+                <div class="form-group hs-form-full">
+
+                    <label>
+                        Office Number
+                    </label>
+
+                    <input class="form-control"
+                           @bind="formModel.PhoneNumber"
+                           disabled="@saving" />
+
+                </div>
+
+                <div class="form-group hs-form-full">
+
+                    <label class="hs-checkbox-label">
+
+                        <input type="checkbox"
+                               @bind="formModel.IsAvailable"
+                               disabled="@saving" />
+
+                        <span>
+                            Practitioner is currently available
+                        </span>
+
+                    </label>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="hs-modal-footer">
+
+            <button type="button"
+                    class="btn btn-secondary"
+                    @onclick="CloseModal"
+                    disabled="@saving">
+
+                Cancel
+
+            </button>
+
+            <button type="button"
+                    class="btn btn-primary"
+                    @onclick="SavePractitioner"
+                    disabled="@saving">
+
+                @if (saving)
+                {
+                    <span class="hs-button-spinner"></span>
+                    <span>Saving...</span>
+                }
+                else
+                {
+                    <span>
+                        @(isEditing
+                            ? "Save Changes"
+                            : "Add Practitioner")
+                    </span>
+                }
+
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+}
+
+@code {
+
+private List<PractitionerResponse> practitioners = new();
+
+private PractitionerCreateRequest formModel = new()
+{
+    IsAvailable = true
+};
+
+private PractitionerResponse? editingPractitioner;
+
+private bool loading;
+private bool saving;
+private bool showModal;
+private bool isEditing;
+
+private string searchTerm = string.Empty;
+
+private string? errorMessage;
+private string? successMessage;
+private string? formErrorMessage;
+
+
+private bool IsAdmin =>
+    AuthService.CurrentUser != null
+    && RoleHelper.IsAdmin(
+        AuthService.CurrentUser.Role);
+
+
+private bool IsPractitioner =>
+    AuthService.CurrentUser != null
+    && RoleHelper.IsPractitioner(
+        AuthService.CurrentUser.Role);
+
+
+private bool CanAccess =>
+    AuthService.IsAuthenticated
+    && (
+        IsAdmin
+        || IsPractitioner
+    );
+
+
+private IEnumerable<PractitionerResponse> FilteredPractitioners =>
+    practitioners.Where(p =>
+        string.IsNullOrWhiteSpace(searchTerm)
+        || $"{p.FirstName} {p.LastName}"
+            .Contains(
+                searchTerm,
+                StringComparison.OrdinalIgnoreCase)
+        || p.Specialty.Contains(
+            searchTerm,
+            StringComparison.OrdinalIgnoreCase));
+
+
+protected override async Task OnInitializedAsync()
+{
+    await AuthService.RestoreSessionAsync();
+
+    if (!CanAccess)
+    {
+        return;
+    }
+
+    await LoadPractitioners();
+}
+
+
+private async Task LoadPractitioners()
+{
+    if (!CanAccess)
+    {
+        return;
+    }
+
+    loading = true;    errorMessage = null;
+
+    try
+    {
+        var result =
+            await PractitionerApiService.GetAllAsync();
+
+        practitioners =
+            result?.ToList()
+            ?? new List<PractitionerResponse>();
+    }
+    catch
+    {
+        errorMessage =
+            "Unable to load practitioners. Please try again.";
+    }
+    finally
+    {
+        loading = false;
+    }
+}
+
+
+private void OpenCreateModal()
+{
+    if (!IsAdmin || saving)
+    {
+        return;
+    }
+
+    formModel =
+        new PractitionerCreateRequest
+        {
+            IsAvailable = true
+        };
+
+    editingPractitioner = null;
+    isEditing = false;
+
+    formErrorMessage = null;
+    showModal = true;
+}
+
+
+private void OpenEditModal(
+    PractitionerResponse practitioner)
+{
+    if (!IsAdmin || saving)
+    {
+        return;
+    }
+
+    editingPractitioner = practitioner;
+
+    formModel =
+        new PractitionerCreateRequest
+        {
+            UserId = practitioner.UserId,
+            FirstName = practitioner.FirstName,
+            LastName = practitioner.LastName,
+            Specialty = practitioner.Specialty,
+            PhoneNumber = practitioner.PhoneNumber,
+            IsAvailable = practitioner.IsAvailable
+        };
+
+    isEditing = true;
+
+    formErrorMessage = null;
+    showModal = true;
+}
+
+
+private void CloseModal()
+{
+    if (saving)
+    {
+        return;
+    }
+
+    showModal = false;
+    formErrorMessage = null;
+}
+
+
+private async Task SavePractitioner()
+{
+    if (!IsAdmin || saving)
+    {
+        return;
+    }
+
+    formErrorMessage = null;
+    successMessage = null;
+
+    if (string.IsNullOrWhiteSpace(formModel.FirstName))
+    {
+        formErrorMessage =
+            "First name is required.";
+
+        return;
+    }
+
+    if (string.IsNullOrWhiteSpace(formModel.LastName))
+    {
+        formErrorMessage =
+            "Last name is required.";
+
+        return;
+    }
+
+    if (string.IsNullOrWhiteSpace(formModel.Specialty))
+    {
+        formErrorMessage =
+            "Specialty is required.";
+
+        return;
+    }
+
+    if (string.IsNullOrWhiteSpace(formModel.PhoneNumber))
+    {
+        formErrorMessage =
+            "Office number is required.";
+
+        return;
+    }
+
+    saving = true;
+
+    try
+    {
+        if (isEditing &&
+            editingPractitioner != null)
+        {
+            var updateRequest =
+                new PractitionerUpdateRequest
+                {
+                    PractitionerFirstName =
+                        formModel.FirstName,
+
+                    PractitionerLastName =
+                        formModel.LastName,
+
+                    Specialty =
+                        formModel.Specialty,
+
+                    OfficeNumber =
+                        formModel.PhoneNumber,
+
+                    IsAvailable =
+                        formModel.IsAvailable
+                };
+
+            await PractitionerApiService.UpdateAsync(
+                editingPractitioner.PractitionerId,
+                updateRequest);
+
+            successMessage =
+                "Practitioner updated successfully.";
+        }
+        else
+        {
+            await PractitionerApiService.CreateAsync(
+                formModel);
+
+            successMessage =
+                "Practitioner added successfully.";
+        }
+
+        showModal = false;
+
+        editingPractitioner = null;
+
+        await LoadPractitioners();
+    }
+    catch (Exception ex)
+    {
+        formErrorMessage =
+            $"Unable to save the practitioner. {GetFriendlyErrorMessage(ex)}";
+    }
+    finally
+    {
+        saving = false;
+    }
+}
+
+
+private static string GetFriendlyErrorMessage(
+    Exception ex)
+{
+    if (ex.Message.Contains(
+        "username",
+        StringComparison.OrdinalIgnoreCase))
+    {
+        return ex.Message;
+    }
+
+    return "Please verify the practitioner details and try again.";
+}
+
+
+private static string GetInitials(
+    string firstName,
+    string lastName)
+{
+    var first =
+        string.IsNullOrWhiteSpace(firstName)
+            ? ""
+            : firstName[..1].ToUpper();
+
+    var last =
+        string.IsNullOrWhiteSpace(lastName)
+            ? ""
+            : lastName[..1].ToUpper();
+
+    return $"{first}{last}";
+}
+
+}

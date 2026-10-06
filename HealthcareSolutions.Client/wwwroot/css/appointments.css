@@ -1,0 +1,43 @@
+.appointment-form-card {
+    margin-bottom: 25px;
+}
+
+.status-scheduled,
+.status-completed,
+.status-cancelled,
+.status-rescheduled,
+.status-unknown {
+    display: inline-block;
+    padding: 5px 10px;
+    border-radius: 15px;
+    border: 1px solid #ccc;
+}
+
+.status-scheduled {
+    background: #edf7ed;
+}
+
+.status-completed {
+    background: #eef3ff;
+}
+
+.status-cancelled {
+    background: #fceeee;
+}
+
+.status-rescheduled {
+    background: #fff8e5;
+}
+
+.status-unknown {
+    background: #f5f5f5;
+}
+
+.btn-danger-small {
+    padding: 6px 12px;
+    margin-left: 6px;
+    border: 1px solid #e0b4b4;
+    border-radius: 5px;
+    background: #fceeee;
+    cursor: pointer;
+}

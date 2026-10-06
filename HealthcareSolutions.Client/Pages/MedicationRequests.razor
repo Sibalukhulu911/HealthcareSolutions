@@ -1,0 +1,1090 @@
+@page "/medication-requests"
+
+@using HealthcareSolutions.Client.Models
+@using HealthcareSolutions.Client.Services
+
+@inject AuthService AuthService
+@inject PractitionerApiService PractitionerApiService
+@inject MedicationRequestApiService MedicationRequestApiService
+
+<PageTitle>Medication Requests</PageTitle>
+
+@if (!AuthService.IsAuthenticated)
+{
+    <div class="hs-page">
+
+        <div class="hs-access-card hs-glass-card">
+
+            <div class="hs-access-icon">
+                !
+            </div>
+
+            <div>
+                <h2>Login Required</h2>
+
+                <p>
+                    Please log in to access medication requests.
+                </p>
+            </div>
+
+        </div>
+
+    </div>
+}
+else if (!CanAccess)
+{
+    <div class="hs-page">
+
+        <div class="hs-access-card hs-glass-card">
+
+            <div class="hs-access-icon hs-access-danger">
+                !
+            </div>
+
+            <div>
+                <h2>Access Denied</h2>
+
+                <p>
+                    You do not have permission to access medication requests.
+                </p>
+            </div>
+
+        </div>
+
+    </div>
+}
+else
+{
+    <div class="hs-page hs-medication-requests-page">
+
+        <!-- PAGE HEADER -->
+
+        <div class="hs-page-header">
+
+            <div>
+
+                <span class="hs-eyebrow">
+                    MEDICATION MANAGEMENT
+                </span>
+
+                <h1>
+                    Medication Requests
+                </h1>
+
+                <p>
+                    @(CanReview
+                        ? "Review medication requests submitted by practitioners."
+                        : "Submit and track requests for medications not currently in the catalogue.")
+                </p>
+
+            </div>
+
+            <div class="hs-page-header-meta">
+
+                <span class="hs-role-chip">
+                    @(CanReview ? "Review Access" : "Practitioner Access")
+                </span>
+
+            </div>
+
+        </div>
+
+
+        <!-- ALERTS -->
+
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="alert alert-danger hs-alert">
+
+                <div class="hs-alert-content">
+
+                    <strong>
+                        Unable to complete the request
+                    </strong>
+
+                    <span>
+                        @errorMessage
+                    </span>
+
+                </div>
+
+                <button class="btn btn-secondary btn-small"
+                        @onclick="ReloadRequests"
+                        disabled="@loading">
+
+                    <span class="bi bi-arrow-clockwise"></span>
+
+                     Try Again
+
+                </button>
+
+            </div>
+        }
+
+
+        @if (!string.IsNullOrWhiteSpace(successMessage))
+        {
+            <div class="alert alert-success hs-alert">
+
+                <div class="hs-alert-content">
+
+                    <strong>
+                        Success
+                    </strong>
+
+                    <span>
+                        @successMessage
+                    </span>
+
+                </div>
+
+            </div>
+        }
+
+
+        <!-- LOADING -->
+
+        @if (loading)
+        {
+            <div class="hs-glass-card hs-loading">
+
+                <span class="hs-spinner"></span>
+
+                <span>
+                    Loading medication requests...
+                </span>
+
+            </div>
+        }
+        else
+        {
+            <!-- SUMMARY -->
+
+            <div class="hs-stat-grid hs-request-summary">
+
+                <div class="hs-stat-card">
+
+                    <div class="hs-stat-icon hs-stat-icon-primary">
+                        MR
+                    </div>
+
+                    <div>
+                        <span class="hs-stat-value">
+                            @requests.Count
+                        </span>
+
+                        <span class="hs-stat-label">
+                            Total Requests
+                        </span>
+                    </div>
+
+                </div>
+
+
+                <div class="hs-stat-card">
+
+                    <div class="hs-stat-icon hs-stat-icon-warning">
+                        P
+                    </div>
+
+                    <div>
+                        <span class="hs-stat-value">
+                            @PendingCount
+                        </span>
+
+                        <span class="hs-stat-label">
+                            Pending
+                        </span>
+                    </div>
+
+                </div>
+
+
+                <div class="hs-stat-card">
+
+                    <div class="hs-stat-icon hs-stat-icon-success">
+                        A
+                    </div>
+
+                    <div>
+                        <span class="hs-stat-value">
+                            @ApprovedCount
+                        </span>
+
+                        <span class="hs-stat-label">
+                            Approved
+                        </span>
+                    </div>
+
+                </div>
+
+
+                <div class="hs-stat-card">
+
+                    <div class="hs-stat-icon hs-stat-icon-danger">
+                        R
+                    </div>
+
+                    <div>
+                        <span class="hs-stat-value">
+                            @RejectedCount
+                        </span>
+
+                        <span class="hs-stat-label">
+                            Rejected
+                        </span>
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- PRACTITIONER REQUEST FORM -->
+
+            @if (CanCreate)
+            {
+                <section class="hs-glass-card hs-request-form-card">
+
+                    <div class="hs-section-header">
+
+                        <div>
+
+                            <span class="hs-eyebrow">
+                                NEW REQUEST
+                            </span>
+
+                            <h2>
+                                Request New Medication
+                            </h2>
+
+                            <p>
+                                Request a medication that is not currently
+                                available in the medication catalogue.
+                            </p>
+
+                        </div>
+
+                        <div class="hs-request-form-icon">
+                            +
+                        </div>
+
+                    </div>
+
+
+                    <EditForm Model="createModel"
+                              OnValidSubmit="CreateRequest">
+
+                        <DataAnnotationsValidator />
+
+                        <ValidationSummary />
+
+
+                        @if (!string.IsNullOrWhiteSpace(createErrorMessage))
+                        {
+                            <div class="alert alert-danger hs-form-alert">
+                                @createErrorMessage
+                            </div>
+                        }
+
+
+                        <div class="hs-request-form-grid">
+
+                            <div class="form-group">
+
+                                <label>
+                                    Medication Name
+                                </label>
+
+                                <InputText class="form-control"
+                                           @bind-Value="createModel.MedicationName"
+                                           placeholder="Enter medication name"
+                                           disabled="@saving" />
+
+                                <ValidationMessage For="@(() => createModel.MedicationName)" />
+
+                            </div>
+
+
+                            <div class="form-group">
+
+                                <label>
+                                    Dosage
+                                </label>
+
+                                <InputText class="form-control"
+                                           @bind-Value="createModel.Dosage"
+                                           placeholder="e.g. 500mg capsule"
+                                           disabled="@saving" />
+
+                                <ValidationMessage For="@(() => createModel.Dosage)" />
+
+                            </div>
+
+
+                            <div class="form-group hs-form-full">
+
+                                <label>
+                                    Description
+                                </label>
+
+                                <InputTextArea class="form-control"
+                                               @bind-Value="createModel.Description"
+                                               placeholder="Describe the medication and its intended use"
+                                               disabled="@saving" />
+
+                                <ValidationMessage For="@(() => createModel.Description)" />
+
+                            </div>
+
+
+                            <div class="form-group hs-form-full">
+
+                                <label>
+                                    Reason / Notes
+                                </label>
+
+                                <InputTextArea class="form-control"
+                                               @bind-Value="createModel.Notes"
+                                               placeholder="Explain why this medication is required"
+                                               disabled="@saving" />
+
+                                <ValidationMessage For="@(() => createModel.Notes)" />
+
+                                <span class="form-help">
+                                    Please provide a clear reason for requesting this medication.
+                                </span>
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="hs-form-footer">
+
+                            <button type="submit"
+                                    class="btn btn-primary"
+                                    disabled="@saving">
+
+                                @if (saving)
+                                {
+                                    <span class="hs-button-spinner"></span>
+                                    <span>Submitting...</span>
+                                }
+                                else
+                                {
+                                    <span>Submit Request</span>
+                                }
+
+                            </button>
+
+                        </div>
+
+                    </EditForm>
+
+                </section>
+            }
+
+
+            <!-- REQUEST LIST -->
+
+            <section class="hs-glass-card hs-request-list-card">
+
+                <div class="hs-section-header">
+
+                    <div>
+
+                        <span class="hs-eyebrow">
+                            REQUEST HISTORY
+                        </span>
+
+                        <h2>
+                            @(CanReview
+                                ? "Medication Requests"
+                                : "My Medication Requests")
+                        </h2>
+
+                        <p>
+                            @(CanReview
+                                ? "Review medication requests submitted by practitioners."
+                                : "View the status and history of your medication requests.")
+                        </p>
+
+                    </div>
+
+
+                    <button class="btn btn-secondary"
+                            @onclick="ReloadRequests"
+                            disabled="@loading">
+
+                          <span class="bi bi-arrow-clockwise"></span>
+                           
+                          Try Again 
+
+                    </button>
+
+                </div>
+
+
+                @if (requests.Count == 0)
+                {
+                    <div class="hs-empty-state">
+
+                        <div class="hs-empty-icon">
+                            MR
+                        </div>
+
+                        <h3>
+                            @(CanReview
+                                ? "No medication requests found"
+                                : "No medication requests yet")
+                        </h3>
+
+                        <p>
+                            @(CanReview
+                                ? "There are currently no medication requests waiting for review."
+                                : "If a medication is not available in the catalogue, you can submit a request above.")
+                        </p>
+
+                    </div>
+                }
+                else
+                {
+                    <div class="hs-table-card hs-request-table-card">
+
+                        <div class="table-responsive">
+
+                            <table class="table hs-data-table">
+
+                                <thead>
+
+                                    <tr>
+
+                                        @if (CanReview)
+                                        {
+                                            <th>
+                                                Practitioner
+                                            </th>
+                                        }
+
+                                        <th>
+                                            Medication
+                                        </th>
+
+                                        <th>
+                                            Dosage
+                                        </th>
+
+                                        <th>
+                                            Description
+                                        </th>
+
+                                        <th>
+                                            Notes
+                                        </th>
+
+                                        <th>
+                                            Status
+                                        </th>
+
+                                        <th>
+                                            Created
+                                        </th>
+
+                                        @if (CanReview)
+                                        {
+                                            <th>
+                                                Action
+                                            </th>
+                                        }
+
+                                    </tr>
+
+                                </thead>
+
+                                <tbody>
+
+                                    @foreach (var request in requests)
+                                    {
+                                        <tr>
+
+                                            @if (CanReview)
+                                            {
+                                                <td>
+
+                                                    <div class="hs-practitioner-cell">
+
+                                                        <div class="hs-practitioner-avatar">
+                                                            @GetPractitionerInitials(request.PractitionerName)
+                                                        </div>
+
+                                                        <div>
+                                                            <strong>
+                                                                @request.PractitionerName
+                                                            </strong>
+
+                                                            <span class="hs-muted">
+                                                                Practitioner
+                                                            </span>
+                                                        </div>
+
+                                                    </div>
+
+                                                </td>
+                                            }
+
+
+                                            <td>
+
+                                                <div class="hs-medication-cell">
+
+                                                    <strong>
+                                                        @request.MedicationName
+                                                    </strong>
+
+                                                    <span class="hs-muted">
+                                                        Medication Request
+                                                    </span>
+
+                                                </div>
+
+                                            </td>
+
+
+                                            <td>
+                                                <span class="hs-dosage-badge">
+                                                    @request.Dosage
+                                                </span>
+                                            </td>
+
+
+                                            <td>
+
+                                                <span class="hs-request-text">
+                                                    @(string.IsNullOrWhiteSpace(
+                                                        request.Description)
+                                                        ? "—"
+                                                        : request.Description)
+                                                </span>
+
+                                            </td>
+
+
+                                            <td>
+
+                                                <span class="hs-request-text">
+                                                    @(string.IsNullOrWhiteSpace(
+                                                        request.Notes)
+                                                        ? "—"
+                                                        : request.Notes)
+                                                </span>
+
+                                            </td>
+
+
+                                            <td>
+
+                                                <span class="@GetStatusClass(request.Status)">
+
+                                                    <span class="hs-badge-dot"></span>
+
+                                                    @request.Status
+
+                                                </span>
+
+                                            </td>
+
+
+                                            <td>
+
+                                                <div class="hs-datetime-cell">
+
+                                                    <strong>
+                                                        @(request.CreatedAt.ToString(
+                                                            "dd/MM/yyyy"))
+                                                    </strong>
+
+                                                    <span class="hs-muted">
+                                                        @(request.CreatedAt.ToString(
+                                                            "HH:mm"))
+                                                    </span>
+
+                                                </div>
+
+                                            </td>
+
+
+                                            @if (CanReview)
+                                            {
+                                                <td>
+
+                                                    @if (request.Status == "Pending")
+                                                    {
+                                                        <div class="hs-request-actions">
+
+                                                            <button type="button"
+                                                                    class="btn btn-success btn-small"
+                                                                    @onclick="() => ApproveRequest(
+                                                                        request.MedicationRequestId)"
+                                                                    disabled="@reviewing">
+
+                                                                @(reviewing &&
+                                                                  reviewingRequestId ==
+                                                                  request.MedicationRequestId &&
+                                                                  reviewingStatus == "Approved"
+                                                                    ? "Approving..."
+                                                                    : "Approve")
+
+                                                            </button>
+
+
+                                                            <button type="button"
+                                                                    class="btn btn-danger btn-small"
+                                                                    @onclick="() => RejectRequest(
+                                                                        request.MedicationRequestId)"
+                                                                    disabled="@reviewing">
+
+                                                                @(reviewing &&
+                                                                  reviewingRequestId ==
+                                                                  request.MedicationRequestId &&
+                                                                  reviewingStatus == "Rejected"
+                                                                    ? "Rejecting..."
+                                                                    : "Reject")
+
+                                                            </button>
+
+                                                        </div>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="hs-muted">
+                                                            Reviewed
+                                                        </span>
+                                                    }
+
+                                                </td>
+                                            }
+
+                                        </tr>
+                                    }
+
+                                </tbody>
+
+                            </table>
+
+                        </div>
+
+                    </div>
+                }
+
+            </section>
+
+        }
+
+    </div>
+}
+
+@code {
+
+    private bool IsAdmin =>
+        AuthService.CurrentUser != null
+        && RoleHelper.IsAdmin(
+            AuthService.CurrentUser.Role);
+
+    private bool IsPractitioner =>
+        AuthService.CurrentUser != null
+        && RoleHelper.IsPractitioner(
+            AuthService.CurrentUser.Role);
+
+    private bool IsPharmacist =>
+        AuthService.CurrentUser != null
+        && RoleHelper.IsPharmacist(
+            AuthService.CurrentUser.Role);
+
+
+    private bool CanAccess =>
+        AuthService.IsAuthenticated
+        && (
+            IsAdmin
+            || IsPractitioner
+            || IsPharmacist
+        );
+
+
+    private bool CanCreate =>
+        AuthService.IsAuthenticated
+        && IsPractitioner;
+
+
+    private bool CanReview =>
+        AuthService.IsAuthenticated
+        && (
+            IsAdmin
+            || IsPharmacist
+        );
+
+
+    private bool loading = true;
+
+    private bool saving;
+
+    private bool reviewing;
+
+    private int reviewingRequestId;
+
+    private string reviewingStatus = string.Empty;
+
+    private string errorMessage = string.Empty;
+
+    private string successMessage = string.Empty;
+
+    private string createErrorMessage = string.Empty;
+
+    private List<MedicationRequestResponse> requests = new();
+
+    private MedicationRequestCreateRequest createModel = new();
+
+    private PractitionerResponse? currentPractitioner;
+
+
+    private int PendingCount =>
+        requests.Count(r =>
+            r.Status == "Pending");
+
+
+    private int ApprovedCount =>
+        requests.Count(r =>
+            r.Status == "Approved");
+
+
+    private int RejectedCount =>
+        requests.Count(r =>
+            r.Status == "Rejected");
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        await AuthService.RestoreSessionAsync();
+
+        if (!AuthService.IsAuthenticated)
+        {
+            loading = false;
+            return;
+        }
+
+        if (!CanAccess)
+        {
+            loading = false;
+            return;
+        }
+
+        await LoadRequests();
+    }
+
+
+    private async Task LoadRequests()
+    {
+        if (!CanAccess)
+        {
+            return;
+        }
+
+        if (loading && requests.Count > 0)
+        {
+            return;
+        }
+
+        loading = true;
+
+        errorMessage = string.Empty;
+
+        successMessage = string.Empty;
+
+        try
+        {
+            if (CanCreate)
+            {
+                var userId =
+                    AuthService.CurrentUser?.UserId;
+
+                if (userId == null)
+                {
+                    errorMessage =
+                        "The logged-in user could not be identified.";
+
+                    return;
+                }
+
+                var practitioners =
+                    await PractitionerApiService.GetAllAsync();
+
+                currentPractitioner =
+                    practitioners.FirstOrDefault(
+                        p => p.UserId == userId);
+
+                if (currentPractitioner == null)
+                {
+                    errorMessage =
+                        "The logged-in practitioner could not be found.";
+
+                    return;
+                }
+
+                requests =
+                    (await MedicationRequestApiService
+                        .GetByPractitionerIdAsync(
+                            currentPractitioner.PractitionerId))
+                    .ToList();
+            }
+            else if (CanReview)
+            {
+                requests =
+                    (await MedicationRequestApiService
+                        .GetAllAsync())
+                    .ToList();
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage =
+                $"Unable to load medication requests: {ex.Message}";
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+
+    private async Task ReloadRequests()
+    {
+        if (!CanAccess ||
+            loading ||
+            saving ||
+            reviewing)
+        {
+            return;
+        }
+
+        await LoadRequests();
+    }
+
+
+    private async Task CreateRequest()
+    {
+        if (!CanCreate || saving)
+        {
+            return;
+        }
+
+        errorMessage = string.Empty;
+
+        successMessage = string.Empty;
+
+        createErrorMessage = string.Empty;
+
+
+        if (currentPractitioner == null)
+        {
+            createErrorMessage =
+                "The logged-in practitioner could not be identified.";
+
+            return;
+        }
+
+
+        if (string.IsNullOrWhiteSpace(
+            createModel.MedicationName))
+        {
+            createErrorMessage =
+                "Please enter the medication name.";
+
+            return;
+        }
+
+
+        if (string.IsNullOrWhiteSpace(
+            createModel.Dosage))
+        {
+            createErrorMessage =
+                "Please enter the dosage.";
+
+            return;
+        }
+
+
+        if (string.IsNullOrWhiteSpace(
+            createModel.Notes))
+        {
+            createErrorMessage =
+                "Please provide a reason or notes for the request.";
+
+            return;
+        }
+
+
+        createModel.PractitionerId =
+            currentPractitioner.PractitionerId;
+
+        saving = true;
+
+        try
+        {
+            await MedicationRequestApiService
+                .CreateAsync(createModel);
+
+            successMessage =
+                "Medication request submitted successfully.";
+
+            createModel =
+                new MedicationRequestCreateRequest
+                {
+                    PractitionerId =
+                        currentPractitioner.PractitionerId
+                };
+
+            requests =
+                (await MedicationRequestApiService
+                    .GetByPractitionerIdAsync(
+                        currentPractitioner.PractitionerId))
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            createErrorMessage =
+                $"Unable to submit medication request: {ex.Message}";
+        }
+        finally
+        {
+            saving = false;
+        }
+    }
+
+
+    private async Task ApproveRequest(
+        int requestId)
+    {
+        if (!CanReview)
+        {
+            return;
+        }
+
+        await ReviewRequest(
+            requestId,
+            "Approved");
+    }
+
+
+    private async Task RejectRequest(
+        int requestId)
+    {
+        if (!CanReview)
+        {
+            return;
+        }
+
+        await ReviewRequest(
+            requestId,
+            "Rejected");
+    }
+
+
+    private async Task ReviewRequest(
+        int requestId,
+        string status)
+    {
+        if (!CanReview ||
+            reviewing ||
+            requestId <= 0)
+        {
+            return;
+        }
+
+        if (status != "Approved" &&
+            status != "Rejected")
+        {
+            return;
+        }
+
+        errorMessage = string.Empty;
+
+        successMessage = string.Empty;
+
+        reviewing = true;
+
+        reviewingRequestId = requestId;
+
+        reviewingStatus = status;
+
+        try
+        {
+            await MedicationRequestApiService
+                .ReviewAsync(
+                    requestId,
+                    new MedicationRequestReviewRequest
+                    {
+                        Status = status
+                    });
+
+            successMessage =
+                $"Medication request {status.ToLower()} successfully.";
+
+            requests =
+                (await MedicationRequestApiService
+                    .GetAllAsync())
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            errorMessage =
+                $"Unable to review medication request: {ex.Message}";
+        }
+        finally
+        {
+            reviewing = false;
+
+            reviewingRequestId = 0;
+
+            reviewingStatus = string.Empty;
+        }
+    }
+
+
+    private string GetStatusClass(string status)
+    {
+        return status switch
+        {
+            "Approved" => "hs-data-badge badge-success",
+            "Rejected" => "hs-data-badge badge-danger",
+            "Pending" => "hs-data-badge badge-warning",
+            _ => "hs-data-badge badge-neutral"
+        };
+    }
+
+
+    private string GetPractitionerInitials(
+        string? practitionerName)
+    {
+        if (string.IsNullOrWhiteSpace(
+            practitionerName))
+        {
+            return "DR";
+        }
+
+        var parts =
+            practitionerName
+                .Split(
+                    ' ',
+                    StringSplitOptions.RemoveEmptyEntries);
+
+        if (parts.Length == 1)
+        {
+            return parts[0][0]
+                .ToString()
+                .ToUpperInvariant();
+        }
+
+        return $"{parts[0][0]}{parts[^1][0]}"
+            .ToUpperInvariant();
+    }
+}

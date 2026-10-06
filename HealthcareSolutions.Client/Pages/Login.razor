@@ -1,0 +1,237 @@
+@page "/login"
+
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+
+<PageTitle>Login</PageTitle>
+
+<div class="hs-login-page">
+
+    <div class="hs-login-background">
+
+        <div class="hs-login-glow hs-login-glow-one"></div>
+        <div class="hs-login-glow hs-login-glow-two"></div>
+
+    </div>
+
+
+    <div class="hs-login-card hs-glass-card">
+
+        <!-- BRAND -->
+
+        <div class="hs-login-brand">
+
+            <div class="hs-login-logo">
+                +
+            </div>
+
+            <div>
+
+                <span class="hs-login-brand-name">
+                    HealthcareSolutions
+                </span>
+
+                <span class="hs-login-brand-subtitle">
+                    Healthcare Management System
+                </span>
+
+            </div>
+
+        </div>
+
+
+        <!-- HEADER -->
+
+        <div class="hs-login-header">
+
+            <span class="hs-eyebrow">
+                SECURE ACCESS
+            </span>
+
+            <h1>
+                Welcome back
+            </h1>
+
+            <p>
+                Sign in to access your HealthcareSolutions dashboard.
+            </p>
+
+        </div>
+
+
+        <!-- LOGIN FORM -->
+
+        <EditForm Model="loginModel"
+                  OnValidSubmit="HandleLogin">
+
+            <div class="form-group">
+
+                <label for="username">
+                    Username
+                </label>
+
+                <InputText id="username"
+                           class="form-control hs-login-input"
+                           @bind-Value="loginModel.Username"
+                           placeholder="Enter your username"
+                           disabled="@isLoggingIn" />
+
+            </div>
+
+
+        <div class="form-group">
+
+            <label for="password">
+                    Password
+            </label>
+
+            <div class="hs-password-wrapper">
+
+                <InputText id="password"
+                           type="@(showPassword ? "text" : "password")"
+                           class="form-control hs-login-input hs-password-input"
+                           @bind-Value="loginModel.Password"
+                           placeholder="Enter your password"
+                           disabled="@isLoggingIn" />
+
+                 <button type="button"
+                        class="hs-password-toggle"
+                        @onclick="TogglePasswordVisibility"
+                        disabled="@isLoggingIn"
+                        aria-label="@(showPassword ? "Hide password" : "Show password")"
+                        title="@(showPassword ? "Hide password" : "Show password")">
+
+                    <svg viewBox="0 0 24 24"
+                            class="hs-password-eye"
+                            aria-hidden="true">
+                            @if (showPassword)
+                            {
+                                <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z" />
+                                <circle cx="12" cy="12" r="3" />
+                            }
+                            else
+                            {
+                                <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z" />
+                                <circle cx="12" cy="12" r="3" />
+                                <line x1="4" y1="4" x2="20" y2="20" />
+                            }
+                    </svg>
+
+                 </button>
+
+               </div> 
+
+          </div>
+
+
+            @if (!string.IsNullOrWhiteSpace(errorMessage))
+            {
+                <div class="alert alert-danger hs-login-alert">
+
+                    <strong>
+                        Login failed
+                    </strong>
+
+                    <span>
+                        @errorMessage
+                    </span>
+
+                </div>
+            }
+
+
+            <button type="submit"
+                    class="btn btn-primary hs-login-button"
+                    disabled="@isLoggingIn">
+
+                @if (isLoggingIn)
+                {
+                    <span class="hs-button-spinner"></span>
+                    <span>Signing in...</span>
+                }
+                else
+                {
+                    <span>Sign In</span>
+                }
+
+            </button>
+
+        </EditForm>
+
+
+        <!-- FOOTER -->
+
+        <div class="hs-login-footer">
+
+            <span>
+                Secure healthcare access
+            </span>
+
+            <span class="hs-login-footer-dot">
+                •
+            </span>
+
+            <span>
+                HealthcareSolutions
+            </span>
+
+        </div>
+
+    </div>
+
+</div>
+
+@code {
+
+    private LoginRequest loginModel = new();
+
+    private string errorMessage = string.Empty;
+
+    private bool isLoggingIn;
+    private bool showPassword;
+    private void TogglePasswordVisibility()
+    {
+        showPassword = !showPassword;
+    }
+
+
+    private async Task HandleLogin()
+    {
+        if (isLoggingIn)
+        {
+            return;
+        }
+
+        errorMessage = string.Empty;
+
+        isLoggingIn = true;
+
+        try
+        {
+            var success =
+                await AuthService.LoginAsync(
+                    loginModel.Username,
+                    loginModel.Password);
+
+            if (!success)
+            {
+                errorMessage =
+                    "Invalid username or password.";
+
+                return;
+            }
+
+            Navigation.NavigateTo(
+                "/dashboard");
+        }
+        catch
+        {
+            errorMessage =
+                "Unable to complete the login. Please try again.";
+        }
+        finally
+        {
+            isLoggingIn = false;
+        }
+    }
+}

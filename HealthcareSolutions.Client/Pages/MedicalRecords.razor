@@ -1,0 +1,913 @@
+﻿@page "/medical-records"
+
+@using HealthcareSolutions.Client.Models
+
+@inject AuthService AuthService
+@inject MedicalRecordApiService MedicalRecordApiService
+@inject PatientApiService PatientApiService
+
+<PageTitle>Medical Records</PageTitle>
+
+@if (!AuthService.IsAuthenticated || !CanAccess)
+{
+    <div class="hs-access-denied">
+        <div class="hs-access-icon">
+            !
+        </div>
+
+        <h2>Access Denied</h2>
+
+        <p>
+            You do not have permission to access medical records.
+        </p>
+    </div>
+}
+else
+{
+    <div class="hs-page">
+
+        <!-- PAGE HEADER -->
+        <div class="hs-page-header">
+
+            <div>
+                <span class="hs-eyebrow">
+                    Clinical Management
+                </span>
+
+                <h1>Medical Records</h1>
+
+                <p>
+                    Manage patient medical records and clinical information.
+                </p>
+            </div>
+
+            @if (CanCreateRecords &&
+                 patients.Any(p => !patientsWithRecords.Contains(p.PatientId)))
+            {
+                <button type="button"
+                        class="btn btn-primary"
+                        @onclick="ShowCreateForm"
+                        disabled="@saving">
+
+                    <span>+</span>
+                    Create Medical Record
+
+                </button>
+            }
+
+        </div>
+
+        <!-- ERROR -->
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="alert alert-danger hs-page-alert">
+
+                <strong>
+                    Unable to load records.
+                </strong>
+
+                <div>
+                    @errorMessage
+                </div>
+
+            </div>
+
+            <button type="button"
+                    class="btn btn-secondary"
+                    @onclick="LoadData"
+                    disabled="@loading">
+
+                Try Again
+
+            </button>
+        }
+
+        <!-- SUCCESS -->
+        @if (!string.IsNullOrWhiteSpace(successMessage))
+        {
+            <div class="alert alert-success hs-page-alert">
+                @successMessage
+            </div>
+        }
+
+        <!-- SUMMARY -->
+        <div class="hs-summary-row">
+
+            <div class="hs-summary-card">
+
+                <div class="hs-summary-icon">
+                    MR
+                </div>
+
+                <div>
+                    <span class="hs-summary-label">
+                        Total Records
+                    </span>
+
+                    <strong class="hs-summary-value">
+                        @records.Count
+                    </strong>
+                </div>
+
+            </div>
+
+            <div class="hs-summary-card">
+
+                <div class="hs-summary-icon">
+                    PT
+                </div>
+
+                <div>
+                    <span class="hs-summary-label">
+                        Registered Patients
+                    </span>
+
+                    <strong class="hs-summary-value">
+                        @patients.Count
+                    </strong>
+                </div>
+
+            </div>
+
+            <div class="hs-summary-card">
+
+                <div class="hs-summary-icon">
+                    +
+                </div>
+
+                <div>
+                    <span class="hs-summary-label">
+                        Without Records
+                    </span>
+
+                    <strong class="hs-summary-value">
+                        @PatientsWithoutRecordsCount
+                    </strong>
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- CREATE FORM -->
+        @if (showForm && CanCreateRecords)
+        {
+            <div class="hs-glass-card hs-record-form">
+
+                <div class="hs-section-header">
+
+                    <div>
+                        <span class="hs-eyebrow">
+                            New Record
+                        </span>
+
+                        <h2>Create Medical Record</h2>
+
+                        <p>
+                            Create a medical record for a registered patient.
+                        </p>
+                    </div>
+
+                    <button type="button"
+                            class="btn btn-secondary"
+                            @onclick="CancelForm"
+                            disabled="@saving">
+
+                        Close
+
+                    </button>
+
+                </div>
+
+                @if (patients.Count == 0)
+                {
+                    <div class="hs-empty-state">
+
+                        <div class="hs-empty-icon">
+                            PT
+                        </div>
+
+                        <h3>No Patients Available</h3>
+
+                        <p>
+                            A patient must be registered before
+                            a medical record can be created.
+                        </p>
+
+                    </div>
+                }
+                else if (!patients.Any(
+                    p => !patientsWithRecords.Contains(p.PatientId)))
+                {
+                    <div class="hs-empty-state">
+
+                        <div class="hs-empty-icon">
+                            ✓
+                        </div>
+
+                        <h3>All Patients Have Records</h3>
+
+                        <p>
+                            Every registered patient already has
+                            a medical record.
+                        </p>
+
+                    </div>
+                }
+                else
+                {
+                    <EditForm Model="recordForm"
+                              OnValidSubmit="CreateRecord">
+
+                        <DataAnnotationsValidator />
+
+                        <ValidationSummary />
+
+                        @if (!string.IsNullOrWhiteSpace(formErrorMessage))
+                        {
+                            <div class="alert alert-danger">
+                                @formErrorMessage
+                            </div>
+                        }
+
+                        <div class="hs-form-grid">
+
+                            <div class="form-group">
+
+                                <label for="medical-record-patient">
+                                    Patient
+                                </label>
+
+                                <InputSelect id="medical-record-patient"
+                                             class="form-control"
+                                             @bind-Value="recordForm.PatientId"
+                                             disabled="@saving">
+
+                                    <option value="0">
+                                        Select a patient
+                                    </option>
+
+                                    @foreach (var patient in patients)
+                                    {
+                                        @if (!patientsWithRecords.Contains(
+                                            patient.PatientId))
+                                        {
+                                            <option value="@patient.PatientId">
+                                                @patient.FirstName
+                                                @patient.LastName
+                                            </option>
+                                        }
+                                    }
+
+                                </InputSelect>
+
+                                <ValidationMessage
+                                    For="@(() => recordForm.PatientId)" />
+
+                            </div>
+
+                        </div>
+
+                        <div class="hs-modal-footer">
+
+                            <button type="button"
+                                    class="btn btn-secondary"
+                                    @onclick="CancelForm"
+                                    disabled="@saving">
+
+                                Cancel
+
+                            </button>
+
+                            <button type="submit"
+                                    class="btn btn-primary"
+                                    disabled="@saving">
+
+                                @if (saving)
+                                {
+                                    <span class="hs-button-spinner"></span>
+                                    <span>Creating...</span>
+                                }
+                                else
+                                {
+                                    <span>Create Medical Record</span>
+                                }
+
+                            </button>
+
+                        </div>
+
+                    </EditForm>
+                }
+
+            </div>
+        }
+
+        <!-- RECORDS TABLE -->
+        <div class="hs-glass-card hs-record-table-card">
+
+            <div class="hs-table-header">
+
+                <div>
+                    <span class="hs-eyebrow">
+                        Patient Records
+                    </span>
+
+                    <h2>Medical Records</h2>
+
+                    <p>
+                        Select a record to view its details.
+                    </p>
+                </div>
+
+                <button type="button"
+                        class="btn btn-secondary"
+                        @onclick="LoadData"
+                        disabled="@loading">
+
+                    Refresh
+
+                </button>
+
+            </div>
+
+            @if (loading)
+            {
+                <div class="hs-loading">
+
+                    <div class="hs-spinner"></div>
+
+                    <p>
+                        Loading medical records...
+                    </p>
+
+                </div>
+            }
+            else if (records.Count == 0)
+            {
+                <div class="hs-empty-state">
+
+                    <div class="hs-empty-icon">
+                        MR
+                    </div>
+
+                    <h3>No Medical Records Found</h3>
+
+                    <p>
+                        There are currently no medical records
+                        registered in the system.
+                    </p>
+
+                    @if (CanCreateRecords && patients.Count == 0)
+                    {
+                        <p class="hs-muted">
+                            Register a patient before creating
+                            a medical record.
+                        </p>
+                    }
+                    else if (CanCreateRecords &&
+                             PatientsWithoutRecordsCount > 0)
+                    {
+                        <button type="button"
+                                class="btn btn-primary"
+                                @onclick="ShowCreateForm">
+
+                            Create First Medical Record
+
+                        </button>
+                    }
+
+                </div>
+            }
+            else
+            {
+                <div class="hs-table-wrapper">
+
+                    <table class="hs-data-table">
+
+                        <thead>
+
+                            <tr>
+                                <th>Record</th>
+                                <th>Patient</th>
+                                <th>Created</th>
+                                <th>Last Updated</th>
+                                <th>Action</th>
+                            </tr>
+
+                        </thead>
+
+                        <tbody>
+
+                            @foreach (var record in records)
+                            {
+                                <tr>
+
+                                    <td>
+                                        <span class="hs-id-label">
+                                            #@record.MedicalRecordId
+                                        </span>
+                                    </td>
+
+                                    <td>
+                                        <div class="hs-patient-cell">
+
+                                            <div class="hs-patient-avatar">
+                                                @GetPatientInitials(
+                                                    record.PatientId)
+                                            </div>
+
+                                            <div>
+
+                                                <strong>
+                                                    @GetPatientName(
+                                                        record.PatientId)
+                                                </strong>
+
+                                                <span class="hs-muted">
+                                                    Patient #
+                                                    @record.PatientId
+                                                </span>
+
+                                            </div>
+
+                                        </div>
+                                    </td>
+
+                                    <td>
+                                        <div class="hs-datetime-cell">
+
+                                            <strong>
+                                                @record.CreatedAt.ToString(
+                                                    "dd/MM/yyyy")
+                                            </strong>
+
+                                            <span class="hs-muted">
+                                                @record.CreatedAt.ToString(
+                                                    "HH:mm")
+                                            </span>
+
+                                        </div>
+                                    </td>
+
+                                    <td>
+                                        <div class="hs-datetime-cell">
+
+                                            <strong>
+                                                @record.UpdatedAt.ToString(
+                                                    "dd/MM/yyyy")
+                                            </strong>
+
+                                            <span class="hs-muted">
+                                                @record.UpdatedAt.ToString(
+                                                    "HH:mm")
+                                            </span>
+
+                                        </div>
+                                    </td>
+
+                                    <td>
+
+                                        <button type="button"
+                                                class="btn btn-small"
+                                                @onclick="() => ViewRecord(record)"
+                                                disabled="@loadingRecord">
+
+                                            @if (loadingRecord)
+                                            {
+                                                <span class="hs-button-spinner"></span>
+                                                <span>Loading...</span>
+                                            }
+                                            else
+                                            {
+                                                <span>View Record</span>
+                                            }
+
+                                        </button>
+
+                                    </td>
+
+                                </tr>
+                            }
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+            }
+
+        </div>
+
+        <!-- SELECTED RECORD -->
+        @if (selectedRecord != null)
+        {
+            <div class="hs-glass-card hs-record-details">
+
+                <div class="hs-section-header">
+
+                    <div>
+
+                        <span class="hs-eyebrow">
+                            Record Details
+                        </span>
+
+                        <h2>Medical Record</h2>
+
+                        <p>
+                            Patient:
+                            <strong>
+                                @GetPatientName(
+                                    selectedRecord.PatientId)
+                            </strong>
+                        </p>
+
+                    </div>
+
+                    <button type="button"
+                            class="btn btn-secondary"
+                            @onclick="CloseRecord">
+
+                        Close
+
+                    </button>
+
+                </div>
+
+                <div class="hs-record-info-grid">
+
+                    <div class="hs-record-info-card">
+
+                        <span>
+                            Medical Record ID
+                        </span>
+
+                        <strong>
+                            #@selectedRecord.MedicalRecordId
+                        </strong>
+
+                    </div>
+
+                    <div class="hs-record-info-card">
+
+                        <span>
+                            Patient ID
+                        </span>
+
+                        <strong>
+                            #@selectedRecord.PatientId
+                        </strong>
+
+                    </div>
+
+                    <div class="hs-record-info-card">
+
+                        <span>
+                            Created
+                        </span>
+
+                        <strong>
+                            @selectedRecord.CreatedAt.ToString(
+                                "dd/MM/yyyy HH:mm")
+                        </strong>
+
+                    </div>
+
+                    <div class="hs-record-info-card">
+
+                        <span>
+                            Last Updated
+                        </span>
+
+                        <strong>
+                            @selectedRecord.UpdatedAt.ToString(
+                                "dd/MM/yyyy HH:mm")
+                        </strong>
+
+                    </div>
+
+                </div>
+
+                <div class="hs-clinical-section">
+
+                    <div class="hs-clinical-heading">
+
+                        <div class="hs-clinical-icon">
+                            +
+                        </div>
+
+                        <div>
+
+                            <h3>
+                                Clinical Information
+                            </h3>
+
+                            <p>
+                                Patient clinical information
+                                associated with this record.
+                            </p>
+
+                        </div>
+
+                    </div>
+
+                    <div class="hs-clinical-placeholder">
+
+                        <span>
+                            Clinical information
+                        </span>
+
+                        <p>
+                            Visit notes and prescriptions associated
+                            with this medical record will appear here
+                            as those modules are accessed through the
+                            system.
+                        </p>
+
+                    </div>
+
+                </div>
+
+            </div>
+        }
+
+    </div>
+}
+
+@code {
+
+    private List<MedicalRecordResponse> records = new();
+
+    private List<PatientResponse> patients = new();
+
+    private HashSet<int> patientsWithRecords = new();
+
+    private MedicalRecordCreateRequest recordForm = new();
+
+    private MedicalRecordResponse? selectedRecord;
+
+    private bool loading = true;
+
+    private bool loadingRecord;
+
+    private bool saving;
+
+    private bool showForm;
+
+    private string errorMessage = string.Empty;
+
+    private string formErrorMessage = string.Empty;
+
+    private string successMessage = string.Empty;
+
+    private bool CanAccess =>
+        AuthService.IsAuthenticated
+        &&
+        (
+            RoleHelper.IsAdmin(
+                AuthService.CurrentUser?.Role)
+            ||
+            RoleHelper.IsPractitioner(
+                AuthService.CurrentUser?.Role)
+            ||
+            RoleHelper.IsPharmacist(
+                AuthService.CurrentUser?.Role)
+        );
+
+    private bool CanCreateRecords =>
+        AuthService.IsAuthenticated
+        &&
+        (
+            RoleHelper.IsAdmin(
+                AuthService.CurrentUser?.Role)
+            ||
+            RoleHelper.IsPractitioner(
+                AuthService.CurrentUser?.Role)
+        );
+
+    private int PatientsWithoutRecordsCount =>
+        patients.Count(
+            p => !patientsWithRecords.Contains(
+                p.PatientId));
+
+    protected override async Task OnInitializedAsync()
+    {
+        await AuthService.RestoreSessionAsync();
+
+        if (!AuthService.IsAuthenticated)
+        {
+            loading = false;
+            return;
+        }
+
+        if (!CanAccess)
+        {
+            loading = false;
+            return;
+        }
+
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        if (!CanAccess)
+        {
+            return;
+        }
+
+        loading = true;
+        errorMessage = string.Empty;
+
+        try
+        {
+            patients =
+                (await PatientApiService.GetAllAsync())
+                .ToList();
+
+            records.Clear();
+            patientsWithRecords.Clear();
+
+            foreach (var patient in patients)
+            {
+                var record =
+                    await MedicalRecordApiService
+                        .GetByPatientIdAsync(
+                            patient.PatientId);
+
+                if (record != null)
+                {
+                    records.Add(record);
+
+                    patientsWithRecords.Add(
+                        patient.PatientId);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage =
+                $"Unable to load medical records. {ex.Message}";
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private void ShowCreateForm()
+    {
+        if (!CanCreateRecords || saving)
+        {
+            return;
+        }
+
+        recordForm =
+            new MedicalRecordCreateRequest();
+
+        formErrorMessage = string.Empty;
+        successMessage = string.Empty;
+
+        showForm = true;
+    }
+
+    private void CancelForm()
+    {
+        if (saving)
+        {
+            return;
+        }
+
+        showForm = false;
+        formErrorMessage = string.Empty;
+    }
+
+    private async Task CreateRecord()
+    {
+        if (!CanCreateRecords || saving)
+        {
+            return;
+        }
+
+        saving = true;
+
+        formErrorMessage = string.Empty;
+        successMessage = string.Empty;
+
+        try
+        {
+            var created =
+                await MedicalRecordApiService
+                    .CreateAsync(recordForm);
+
+            if (created == null)
+            {
+                formErrorMessage =
+                    "The medical record could not be created.";
+
+                return;
+            }
+
+            showForm = false;
+
+            successMessage =
+                "Medical record created successfully.";
+
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            formErrorMessage =
+                $"Unable to create medical record: {ex.Message}";
+        }
+        finally
+        {
+            saving = false;
+        }
+    }
+
+    private async Task ViewRecord(
+        MedicalRecordResponse record)
+    {
+        if (!CanAccess || loadingRecord)
+        {
+            return;
+        }
+
+        loadingRecord = true;
+        errorMessage = string.Empty;
+
+        try
+        {
+            selectedRecord =
+                await MedicalRecordApiService
+                    .GetByIdAsync(
+                        record.MedicalRecordId);
+
+            if (selectedRecord == null)
+            {
+                errorMessage =
+                    "The medical record could not be found.";
+            }
+        }
+        catch (Exception ex)
+        {
+            selectedRecord = null;
+
+            errorMessage =
+                $"Unable to load medical record. {ex.Message}";
+        }
+        finally
+        {
+            loadingRecord = false;
+        }
+    }
+
+    private void CloseRecord()
+    {
+        selectedRecord = null;
+    }
+
+    private string GetPatientName(
+        int patientId)
+    {
+        var patient =
+            patients.FirstOrDefault(
+                p => p.PatientId == patientId);
+
+        return patient == null
+            ? $"Patient #{patientId}"
+            : $"{patient.FirstName} {patient.LastName}";
+    }
+
+    private string GetPatientInitials(
+        int patientId)
+    {
+        var patient =
+            patients.FirstOrDefault(
+                p => p.PatientId == patientId);
+
+        if (patient == null)
+        {
+            return "PT";
+        }
+
+        var firstInitial =
+            string.IsNullOrWhiteSpace(patient.FirstName)
+                ? string.Empty
+                : patient.FirstName[0].ToString();
+
+        var lastInitial =
+            string.IsNullOrWhiteSpace(patient.LastName)
+                ? string.Empty
+                : patient.LastName[0].ToString();
+
+        var initials =
+            $"{firstInitial}{lastInitial}"
+                .ToUpperInvariant();
+
+        return string.IsNullOrWhiteSpace(initials)
+            ? "PT"
+            : initials;
+    }
+}

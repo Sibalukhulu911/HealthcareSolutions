@@ -1,0 +1,983 @@
+﻿@page "/users"
+
+@using HealthcareSolutions.Client.Models
+@using HealthcareSolutions.Client.Shared
+
+@inject AuthService AuthService
+@inject UserApiService UserApiService
+
+<PageTitle>Users</PageTitle>
+
+@if (!AuthService.IsAuthenticated)
+{
+    <div class="hs-page">
+
+        <div class="hs-access-card hs-glass-card">
+
+            <div class="hs-access-icon">
+                !
+            </div>
+
+            <div>
+                <h2>Login Required</h2>
+
+                <p>
+                    Please log in to access user management.
+                </p>
+            </div>
+
+        </div>
+
+    </div>
+}
+else if (!CanAccess)
+{
+    <div class="hs-page">
+
+        <div class="hs-access-card hs-glass-card">
+
+            <div class="hs-access-icon hs-access-danger">
+                !
+            </div>
+
+            <div>
+                <h2>Access Denied</h2>
+
+                <p>
+                    You do not have permission to access user management.
+                </p>
+            </div>
+
+        </div>
+
+    </div>
+}
+else
+{
+    <div class="hs-page hs-users-page">
+
+        <!-- PAGE HEADER -->
+
+        <div class="hs-page-header">
+
+            <div>
+
+                <span class="hs-eyebrow">
+                    SYSTEM ADMINISTRATION
+                </span>
+
+                <h1>Users</h1>
+
+                <p>
+                    Manage system accounts, roles, and access status.
+                </p>
+
+            </div>
+
+            <button type="button"
+                    class="btn btn-primary"
+                    @onclick="OpenCreateForm">
+                + Add User
+            </button>
+
+        </div>
+
+        <!-- ALERTS -->
+
+        @if (!string.IsNullOrWhiteSpace(successMessage))
+        {
+            <div class="alert alert-success">
+                @successMessage
+            </div>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="alert alert-danger">
+                @errorMessage
+            </div>
+        }
+
+        <!-- SUMMARY -->
+
+        <div class="hs-stat-grid hs-users-summary">
+
+            <div class="hs-stat-card hs-glass-card">
+
+                <div class="hs-stat-icon">
+                    U
+                </div>
+
+                <div>
+                    <div class="hs-stat-value">
+                        @users.Count
+                    </div>
+
+                    <div class="hs-stat-label">
+                        Total Users
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="hs-stat-card hs-glass-card">
+
+                <div class="hs-stat-icon">
+                    ✓
+                </div>
+
+                <div>
+                    <div class="hs-stat-value">
+                        @ActiveCount
+                    </div>
+
+                    <div class="hs-stat-label">
+                        Active
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="hs-stat-card hs-glass-card">
+
+                <div class="hs-stat-icon">
+                    ○
+                </div>
+
+                <div>
+                    <div class="hs-stat-value">
+                        @InactiveCount
+                    </div>
+
+                    <div class="hs-stat-label">
+                        Inactive
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="hs-stat-card hs-glass-card">
+
+                <div class="hs-stat-icon">
+                    R
+                </div>
+
+                <div>
+                    <div class="hs-stat-value">
+                        @RoleCount
+                    </div>
+
+                    <div class="hs-stat-label">
+                        Roles in Use
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- SEARCH / FILTER -->
+
+        <div class="hs-controls hs-glass-card">
+
+            <div class="hs-search">
+
+                <span class="hs-search-icon">
+                    🔍
+                </span>
+
+                <input class="form-control"
+                       placeholder="Search by username..."
+                       @bind="searchTerm"
+                       @bind:event="oninput" />
+
+            </div>
+
+            <select class="form-select hs-user-filter"
+                    @bind="roleFilter">
+
+                <option value="All">
+                    All Roles
+                </option>
+
+                <option value="0">
+                    Admin
+                </option>
+
+                <option value="1">
+                    Receptionist
+                </option>
+
+                <option value="2">
+                    Practitioner
+                </option>
+
+                <option value="3">
+                    Pharmacist
+                </option>
+
+            </select>
+
+            <select class="form-select hs-user-filter"
+                    @bind="statusFilter">
+
+                <option value="All">
+                    All Statuses
+                </option>
+
+                <option value="Active">
+                    Active
+                </option>
+
+                <option value="Inactive">
+                    Inactive
+                </option>
+
+            </select>
+
+            <button type="button"
+                    class="btn btn-secondary"
+                    @onclick="LoadUsers">
+                Refresh
+            </button>
+
+        </div>
+
+        <!-- LOADING -->
+
+        @if (loading)
+        {
+            <div class="hs-loading hs-glass-card">
+
+                <div class="hs-spinner"></div>
+
+                <p>
+                    Loading users...
+                </p>
+
+            </div>
+        }
+        else if (!string.IsNullOrWhiteSpace(errorMessage)
+                 && users.Count == 0)
+        {
+            <div class="hs-empty-state hs-glass-card">
+
+                <div class="hs-empty-icon">
+                    !
+                </div>
+
+                <h3>
+                    Unable to load users
+                </h3>
+
+                <p>
+                    Please try again.
+                </p>
+
+                <button type="button"
+                        class="btn btn-primary"
+                        @onclick="LoadUsers">
+                    Try Again
+                </button>
+
+            </div>
+        }
+        else if (!FilteredUsers.Any())
+        {
+            <div class="hs-empty-state hs-glass-card">
+
+                <div class="hs-empty-icon">
+                    U
+                </div>
+
+                <h3>
+                    No users found
+                </h3>
+
+                <p>
+                    No user accounts match the current search or filters.
+                </p>
+
+            </div>
+        }
+        else
+        {
+            <!-- USER TABLE -->
+
+            <div class="hs-glass-card hs-users-table-card">
+
+                <div class="hs-section-header">
+
+                    <div>
+
+                        <span class="hs-eyebrow">
+                            USER ACCOUNTS
+                        </span>
+
+                        <h2>
+                            System users
+                        </h2>
+
+                        <p>
+                            Manage account access and assigned roles.
+                        </p>
+
+                    </div>
+
+                </div>
+
+                <div class="table-responsive">
+
+                    <table class="table hs-users-table">
+
+                        <thead>
+
+                            <tr>
+
+                                <th>User</th>
+
+                                <th>Role</th>
+
+                                <th>Status</th>
+
+                                <th>Created</th>
+
+                                <th>Actions</th>
+
+                            </tr>
+
+                        </thead>
+
+                        <tbody>
+
+                            @foreach (var user in FilteredUsers)
+                            {
+                                <tr>
+
+                                    <td>
+
+                                        <div class="hs-user-cell">
+
+                                            <div class="hs-user-avatar">
+                                                @GetUserInitials(user.Username)
+                                            </div>
+
+                                            <div>
+
+                                                <strong>
+                                                    @user.Username
+                                                </strong>
+
+                                                <span class="hs-muted">
+                                                    User #@user.UserId
+                                                </span>
+
+                                            </div>
+
+                                        </div>
+
+                                    </td>
+
+                                    <td>
+
+                                        <span class="@GetRoleClass(user.Role)">
+                                            @GetRoleText(user.Role)
+                                        </span>
+
+                                    </td>
+
+                                    <td>
+
+                                        @if (user.IsActive)
+                                        {
+                                            <span class="hs-data-badge badge-success">
+                                                <span class="hs-badge-dot"></span>
+                                                Active
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="hs-data-badge badge-neutral">
+                                                <span class="hs-badge-dot"></span>
+                                                Inactive
+                                            </span>
+                                        }
+
+                                    </td>
+
+                                    <td>
+
+                                        <div class="hs-datetime-cell">
+
+                                            <strong>
+                                                @(user.CreatedAt.ToLocalTime()
+                                                    .ToString("dd/MM/yyyy"))
+                                            </strong>
+
+                                            <span class="hs-muted">
+                                                @(user.CreatedAt.ToLocalTime()
+                                                    .ToString("HH:mm"))
+                                            </span>
+
+                                        </div>
+
+                                    </td>
+
+                                    <td>
+
+                                        <div class="hs-user-actions">
+
+                                            <button type="button"
+                                                    class="btn btn-secondary btn-small"
+                                                    @onclick="() => OpenEditForm(user)">
+                                                Edit
+                                            </button>
+
+                                            @if (user.IsActive)
+                                            {
+                                                <button type="button"
+                                                        class="btn btn-danger btn-small"
+                                                        @onclick="() => ShowDeactivateConfirmation(user)">
+                                                    Deactivate
+                                                </button>
+                                            }
+
+                                        </div>
+
+                                    </td>
+
+                                </tr>
+                            }
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+            </div>
+        }
+
+        <!-- CREATE / EDIT MODAL -->
+
+        @if (showForm)
+        {
+            <div class="hs-modal-overlay">
+
+                <div class="hs-modal hs-user-modal">
+
+                    <div class="hs-modal-header">
+
+                        <div>
+
+                            <span class="hs-eyebrow">
+                                @(editingUserId.HasValue
+                                    ? "EDIT ACCOUNT"
+                                    : "NEW ACCOUNT")
+                            </span>
+
+                            <h2>
+                                @(editingUserId.HasValue
+                                    ? "Edit User"
+                                    : "Create User")
+                            </h2>
+
+                        </div>
+
+                        <button type="button"
+                                class="hs-modal-close"
+                                @onclick="CancelForm">
+                            ×
+                        </button>
+
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(formErrorMessage))
+                    {
+                        <div class="alert alert-danger hs-form-alert">
+                            @formErrorMessage
+                        </div>
+                    }
+
+                    <EditForm Model="userModel"
+                              OnValidSubmit="SaveUser">
+
+                        <DataAnnotationsValidator />
+
+                        <div class="hs-user-form-grid">
+
+                            <div class="form-group">
+
+                                <label for="username">
+                                    Username
+                                </label>
+
+                                <InputText id="username"
+                                           class="form-control"
+                                           @bind-Value="userModel.Username" />
+
+                                <ValidationMessage For="@(() => userModel.Username)" />
+
+                            </div>
+
+                            @if (!editingUserId.HasValue)
+                            {
+                                <div class="form-group">
+
+                                    <label for="password">
+                                        Password
+                                    </label>
+
+                                    <InputText id="password"
+                                               type="password"
+                                               class="form-control"
+                                               @bind-Value="userModel.Password" />
+
+                                    <ValidationMessage For="@(() => userModel.Password)" />
+
+                                    <span class="form-help">
+                                        Password must contain at least 8 characters.
+                                    </span>
+
+                                </div>
+                            }
+
+                            <div class="form-group">
+
+                                <label for="role">
+                                    Role
+                                </label>
+
+                                <InputSelect id="role"
+                                             class="form-select"
+                                             @bind-Value="userModel.Role">
+
+                                    <option value="0">
+                                        Admin
+                                    </option>
+
+                                    <option value="1">
+                                        Receptionist
+                                    </option>
+
+                                    <option value="2">
+                                        Practitioner
+                                    </option>
+
+                                    <option value="3">
+                                        Pharmacist
+                                    </option>
+
+                                </InputSelect>
+
+                                <ValidationMessage For="@(() => userModel.Role)" />
+
+                            </div>
+
+                            <div class="form-group hs-user-active-field">
+
+                                <label>
+                                    Account Status
+                                </label>
+
+                                <label class="hs-checkbox">
+
+                                    <InputCheckbox
+                                        @bind-Value="userModel.IsActive" />
+
+                                    <span>
+                                        Account is active
+                                    </span>
+
+                                </label>
+
+                            </div>
+
+                        </div>
+
+                        <div class="hs-modal-footer">
+
+                            <button type="button"
+                                    class="btn btn-secondary"
+                                    @onclick="CancelForm"
+                                    disabled="@isSaving">
+                                Cancel
+                            </button>
+
+                            <button type="submit"
+                                    class="btn btn-primary"
+                                    disabled="@isSaving">
+
+                                @if (isSaving)
+                                {
+                                    <span class="hs-button-spinner"></span>
+
+                                    <span>
+                                        Saving...
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span>
+                                        @(editingUserId.HasValue
+                                            ? "Save Changes"
+                                            : "Create User")
+                                    </span>
+                                }
+
+                            </button>
+
+                        </div>
+
+                    </EditForm>
+
+                </div>
+
+            </div>
+        }
+
+    </div>
+}
+
+<ConfirmDialog Visible="@showDeactivateConfirmation"
+               Title="Deactivate User"
+               Message="@($"Are you sure you want to deactivate '{userToDeactivateName}'? This user will no longer be able to sign in.")"
+               OnConfirm="ConfirmDeactivate"
+               OnCancel="CancelDeactivate" />
+
+@code {
+
+    private List<UserResponse> users = new();
+
+    private UserCreateRequest userModel = new();
+
+    private int? editingUserId;
+
+    private bool loading = true;
+
+    private bool isSaving;
+
+    private bool showForm;
+
+    private bool showDeactivateConfirmation;
+
+    private int userToDeactivateId;
+
+    private string userToDeactivateName = string.Empty;
+
+    private string searchTerm = string.Empty;
+
+    private string roleFilter = "All";
+
+    private string statusFilter = "All";
+
+    private string errorMessage = string.Empty;
+
+    private string formErrorMessage = string.Empty;
+
+    private string successMessage = string.Empty;
+
+    private bool CanAccess =>
+        AuthService.IsAuthenticated
+        && RoleHelper.IsAdmin(
+            AuthService.CurrentUser?.Role);
+
+    private IEnumerable<UserResponse> FilteredUsers =>
+        users
+            .Where(MatchesSearch)
+            .Where(MatchesRole)
+            .Where(MatchesStatus)
+            .OrderBy(user => user.Username);
+
+    private int ActiveCount =>
+        users.Count(user => user.IsActive);
+
+    private int InactiveCount =>
+        users.Count(user => !user.IsActive);
+
+    private int RoleCount =>
+        users
+            .Select(user => user.Role)
+            .Distinct()
+            .Count();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await AuthService.RestoreSessionAsync();
+
+        if (!AuthService.IsAuthenticated || !CanAccess)
+        {
+            loading = false;
+            return;
+        }
+
+        await LoadUsers();
+    }
+
+    private async Task LoadUsers()
+    {
+        if (!CanAccess || isSaving)
+        {
+            return;
+        }
+
+        loading = true;
+
+        errorMessage = string.Empty;
+
+        try
+        {
+            users =
+                await UserApiService.GetAllAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage =
+                $"Unable to load users: {ex.Message}";
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private bool MatchesSearch(UserResponse user)
+    {
+        if (string.IsNullOrWhiteSpace(searchTerm))
+        {
+            return true;
+        }
+
+        return user.Username.Contains(
+            searchTerm,
+            StringComparison.OrdinalIgnoreCase)
+            ||
+            user.UserId.ToString().Contains(
+                searchTerm,
+                StringComparison.OrdinalIgnoreCase);
+    }
+
+    private bool MatchesRole(UserResponse user)
+    {
+        if (roleFilter == "All")
+        {
+            return true;
+        }
+
+        return user.Role.ToString() == roleFilter;
+    }
+
+    private bool MatchesStatus(UserResponse user)
+    {
+        if (statusFilter == "All")
+        {
+            return true;
+        }
+
+        if (statusFilter == "Active")
+        {
+            return user.IsActive;
+        }
+
+        return !user.IsActive;
+    }
+
+    private void OpenCreateForm()
+    {
+        editingUserId = null;
+
+        userModel = new UserCreateRequest
+        {
+            Role = 1,
+            IsActive = true
+        };
+
+        formErrorMessage = string.Empty;
+
+        showForm = true;
+    }
+
+    private void OpenEditForm(UserResponse user)
+    {
+        editingUserId = user.UserId;
+
+        userModel = new UserCreateRequest
+        {
+            Username = user.Username,
+            Role = user.Role,
+            IsActive = user.IsActive
+        };
+
+        formErrorMessage = string.Empty;
+
+        showForm = true;
+    }
+
+    private void CancelForm()
+    {
+        if (isSaving)
+        {
+            return;
+        }
+
+        showForm = false;
+
+        formErrorMessage = string.Empty;
+    }
+
+    private async Task SaveUser()
+    {
+        if (isSaving)
+        {
+            return;
+        }
+
+        isSaving = true;
+
+        formErrorMessage = string.Empty;
+        errorMessage = string.Empty;
+        successMessage = string.Empty;
+
+        try
+        {
+            if (editingUserId.HasValue)
+            {
+                var updateRequest =
+                    new UserUpdateRequest
+                    {
+                        Username = userModel.Username,
+                        Role = userModel.Role,
+                        IsActive = userModel.IsActive
+                    };
+
+                await UserApiService.UpdateAsync(
+                    editingUserId.Value,
+                    updateRequest);
+
+                successMessage =
+                    "User account updated successfully.";
+            }
+            else
+            {
+                await UserApiService.CreateAsync(
+                    userModel);
+
+                successMessage =
+                    "User account created successfully.";
+            }
+
+            showForm = false;
+
+            await LoadUsers();
+        }
+        catch (Exception ex)
+        {
+            formErrorMessage =
+                ex.Message;
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private void ShowDeactivateConfirmation(
+        UserResponse user)
+    {
+        userToDeactivateId = user.UserId;
+
+        userToDeactivateName =
+            user.Username;
+
+        showDeactivateConfirmation = true;
+    }
+
+    private async Task ConfirmDeactivate()
+    {
+        showDeactivateConfirmation = false;
+
+        errorMessage = string.Empty;
+        successMessage = string.Empty;
+
+        try
+        {
+            await UserApiService.DeactivateAsync(
+                userToDeactivateId);
+
+            successMessage =
+                $"User '{userToDeactivateName}' was deactivated.";
+
+            await LoadUsers();
+        }
+        catch (Exception ex)
+        {
+            errorMessage =
+                $"Unable to deactivate user: {ex.Message}";
+        }
+        finally
+        {
+            userToDeactivateId = 0;
+            userToDeactivateName = string.Empty;
+        }
+    }
+
+    private void CancelDeactivate()
+    {
+        showDeactivateConfirmation = false;
+
+        userToDeactivateId = 0;
+        userToDeactivateName = string.Empty;
+    }
+
+    private string GetRoleText(int role)
+    {
+        return role switch
+        {
+            0 => "Admin",
+            1 => "Receptionist",
+            2 => "Practitioner",
+            3 => "Pharmacist",
+            _ => "Unknown"
+        };
+    }
+
+    private string GetRoleClass(int role)
+    {
+        return role switch
+        {
+            0 => "hs-data-badge badge-danger",
+            1 => "hs-data-badge badge-info",
+            2 => "hs-data-badge badge-success",
+            3 => "hs-data-badge badge-warning",
+            _ => "hs-data-badge badge-neutral"
+        };
+    }
+
+    private string GetUserInitials(string username)
+    {
+        if (string.IsNullOrWhiteSpace(username))
+        {
+            return "U";
+        }
+
+        var parts =
+            username
+                .Trim()
+                .Split(
+                    ' ',
+                    StringSplitOptions.RemoveEmptyEntries);
+
+        if (parts.Length >= 2)
+        {
+            return (
+                $"{parts[0][0]}{parts[1][0]}"
+            ).ToUpperInvariant();
+        }
+
+        return username
+            .Substring(
+                0,
+                Math.Min(2, username.Length))
+            .ToUpperInvariant();
+    }
+}

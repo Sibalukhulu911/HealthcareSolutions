@@ -1,0 +1,304 @@
+﻿@page "/"
+
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+
+<PageTitle>Home</PageTitle>
+
+@if (AuthService.IsAuthenticated)
+{ <div class="hs-home-page hs-home-authenticated">
+
+
+    <div class="hs-home-background">
+        <div class="hs-home-glow hs-home-glow-one"></div>
+    </div>
+
+    <div class="hs-home-signed-in hs-glass-card">
+
+        <div class="hs-home-signed-in-icon">
+            ✓
+        </div>
+
+        <span class="hs-eyebrow">
+            AUTHENTICATED
+        </span>
+
+        <h1>
+            You're already signed in.
+        </h1>
+
+        <p>
+            Welcome back,
+            <strong>@AuthService.CurrentUser?.Username</strong>.
+            You are signed in as
+            <strong>@AuthService.CurrentUser?.Role</strong>.
+        </p>
+
+        <div class="hs-home-signed-in-actions">
+
+            <button type="button"
+                    class="btn btn-primary"
+                    @onclick="GoToDashboard">
+                Go to Dashboard
+            </button>
+
+            <button type="button"
+                    class="btn btn-secondary"
+                    @onclick="Logout">
+                Sign Out
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+}
+else
+{ <div class="hs-home-page hs-home-page-reserved">
+
+    <div class="hs-home-background">
+        <div class="hs-home-glow hs-home-glow-one"></div>
+    </div>
+
+    <section class="hs-home-hero">
+
+        <div class="hs-home-hero-content">
+
+            <span class="hs-eyebrow">
+                HEALTHCARE MANAGEMENT SYSTEM
+            </span>
+
+            <h1>
+                Healthcare management,
+                <span>simplified.</span>
+            </h1>
+
+            <p class="hs-home-description">
+                HealthcareSolutions provides a centralized platform
+                for managing patients, appointments, medical records,
+                prescriptions, and clinical workflows.
+            </p>
+
+            <div class="hs-home-actions">
+
+                <a href="/login"
+                   class="btn btn-primary hs-home-primary-button">
+                    Sign In
+                </a>
+
+            </div>
+
+        </div>
+
+        <div class="hs-home-visual">
+
+            <div class="hs-home-dashboard-card hs-glass-card">
+
+                <div class="hs-home-card-header">
+
+                    <div>
+                        <span class="hs-home-card-eyebrow">
+                            HEALTHCARE SOLUTIONS
+                        </span>
+
+                        <strong>
+                            Centralized care management
+                        </strong>
+                    </div>
+
+                    <span class="hs-home-live">
+                        <span class="hs-home-live-dot"></span>
+                        Secure
+                    </span>
+
+                </div>
+
+                <div class="hs-home-feature-card">
+
+                    <div class="hs-home-feature-icon">
+                        +
+                    </div>
+
+                    <div>
+                        <strong>
+                            Connected healthcare
+                        </strong>
+
+                        <span>
+                            Keep essential healthcare information
+                            organized in one place.
+                        </span>
+                    </div>
+
+                </div>
+
+                <div class="hs-home-simple-list">
+
+                    <div class="hs-home-simple-item">
+
+                        <span class="hs-home-simple-icon">
+                            P
+                        </span>
+
+                        <div>
+                            <strong>Patient Management</strong>
+
+                            <span>
+                                Centralized patient information
+                            </span>
+                        </div>
+
+                    </div>
+
+                    <div class="hs-home-simple-item">
+
+                        <span class="hs-home-simple-icon">
+                            A
+                        </span>
+
+                        <div>
+                            <strong>Appointments</strong>
+
+                            <span>
+                                Organized scheduling and tracking
+                            </span>
+                        </div>
+
+                    </div>
+
+                    <div class="hs-home-simple-item">
+
+                        <span class="hs-home-simple-icon">
+                            M
+                        </span>
+
+                        <div>
+                            <strong>Medical Records</strong>
+
+                            <span>
+                                Accessible clinical information
+                            </span>
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </section>
+
+    <section class="hs-home-features">
+
+        <div class="hs-home-section-heading">
+
+            <span class="hs-eyebrow">
+                CORE FEATURES
+            </span>
+
+            <h2>
+                Everything in one place.
+            </h2>
+
+            <p>
+                A simple workspace designed to support everyday
+                healthcare operations.
+            </p>
+
+        </div>
+
+        <div class="hs-home-feature-grid">
+
+            <div class="hs-home-feature-tile hs-glass-card">
+
+                <div class="hs-home-tile-icon">
+                    P
+                </div>
+
+                <h3>Patient Management</h3>
+
+                <p>
+                    Register and manage patient information
+                    from a centralized workspace.
+                </p>
+
+            </div>
+
+            <div class="hs-home-feature-tile hs-glass-card">
+
+                <div class="hs-home-tile-icon">
+                    A
+                </div>
+
+                <h3>Appointments</h3>
+
+                <p>
+                    Schedule, track, and manage healthcare
+                    appointments efficiently.
+                </p>
+
+            </div>
+
+            <div class="hs-home-feature-tile hs-glass-card">
+
+                <div class="hs-home-tile-icon">
+                    M
+                </div>
+
+                <h3>Medical Records</h3>
+
+                <p>
+                    Keep clinical information organized
+                    and accessible to authorized users.
+                </p>
+
+            </div>
+
+            <div class="hs-home-feature-tile hs-glass-card">
+
+                <div class="hs-home-tile-icon">
+                    Rx
+                </div>
+
+                <h3>Prescriptions</h3>
+
+                <p>
+                    Manage prescriptions and medication
+                    workflows across the care team.
+                </p>
+
+            </div>
+
+        </div>
+
+    </section>
+
+</div>
+
+}
+
+@code {
+
+protected override async Task OnInitializedAsync()
+{
+    await AuthService.RestoreSessionAsync();
+}
+
+private void GoToDashboard()
+{
+    Navigation.NavigateTo("/dashboard");
+}
+
+private async Task Logout()
+{
+    await AuthService.LogoutAsync();
+
+    Navigation.NavigateTo("/");
+}
+
+}

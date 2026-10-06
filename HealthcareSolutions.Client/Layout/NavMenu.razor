@@ -1,0 +1,382 @@
+﻿@implements IDisposable
+
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+
+
+<div class="hs-nav">
+
+    <div class="hs-nav-section">
+
+        <div class="hs-nav-section-title">
+            MAIN
+        </div>
+
+
+        <!-- HOME -->
+
+        <NavLink class="hs-nav-link"
+                 href=""
+                 Match="NavLinkMatch.All">
+
+            <span class="bi bi-house-door-fill hs-nav-icon"></span>
+
+            <span>Home</span>
+
+        </NavLink>
+
+
+        @if (AuthService.IsAuthenticated)
+        {
+
+            <!-- DASHBOARD -->
+
+            <NavLink class="hs-nav-link"
+                     href="dashboard">
+
+                <span class="bi bi-grid-1x2-fill hs-nav-icon"></span>
+
+                <span>Dashboard</span>
+
+            </NavLink>
+
+
+            <!-- ===================== -->
+            <!-- ADMIN -->
+            <!-- ===================== -->
+
+            @if (RoleHelper.IsAdmin(
+                AuthService.CurrentUser?.Role))
+            {
+                <div class="hs-nav-section-title">
+                    ADMINISTRATION
+                </div>
+
+
+                <NavLink class="hs-nav-link"
+                         href="users">
+
+                    <span class="bi bi-people-fill hs-nav-icon"></span>
+
+                    <span>Users</span>
+
+                </NavLink>
+
+
+                <NavLink class="hs-nav-link"
+                         href="practitioners">
+
+                    <span class="bi bi-person-badge-fill hs-nav-icon"></span>
+
+                    <span>Practitioners</span>
+
+                </NavLink>
+
+
+                <NavLink class="hs-nav-link"
+                         href="patients">
+
+                    <span class="bi bi-person-vcard-fill hs-nav-icon"></span>
+
+                    <span>Patients</span>
+
+                </NavLink>
+
+
+                <NavLink class="hs-nav-link"
+                         href="appointments">
+
+                    <span class="bi bi-calendar-check-fill hs-nav-icon"></span>
+
+                    <span>Appointments</span>
+
+                </NavLink>
+
+
+                <NavLink class="hs-nav-link"
+                         href="medical-records">
+
+                    <span class="bi bi-file-medical-fill hs-nav-icon"></span>
+
+                    <span>Medical Records</span>
+
+                </NavLink>
+
+
+                <NavLink class="hs-nav-link"
+                         href="visit-notes">
+
+                    <span class="bi bi-journal-medical hs-nav-icon"></span>
+
+                    <span>Visit Notes</span>
+
+                </NavLink>
+
+
+                <NavLink class="hs-nav-link"
+                         href="medications">
+
+                    <span class="bi bi-capsule-pill hs-nav-icon"></span>
+
+                    <span>Medications</span>
+
+                </NavLink>
+
+
+                <NavLink class="hs-nav-link"
+                         href="prescriptions">
+
+                    <span class="bi bi-prescription2 hs-nav-icon"></span>
+
+                    <span>Prescriptions</span>
+
+                </NavLink>
+
+
+                <NavLink class="hs-nav-link"
+                         href="medication-requests">
+
+                    <span class="bi bi-capsule-pill hs-nav-icon"></span>
+
+                    <span>Medication Requests</span>
+
+                </NavLink>
+            }
+
+
+            <!-- ===================== -->
+            <!-- RECEPTIONIST -->
+            <!-- ===================== -->
+
+            @if (RoleHelper.IsReceptionist(
+                AuthService.CurrentUser?.Role))
+            {
+                <div class="hs-nav-section-title">
+                    RECEPTION
+                </div>
+
+
+                <NavLink class="hs-nav-link"
+                         href="patients">
+
+                    <span class="bi bi-person-vcard-fill hs-nav-icon"></span>
+
+                    <span>Patients</span>
+
+                </NavLink>
+
+
+                <NavLink class="hs-nav-link"
+                         href="appointments">
+
+                    <span class="bi bi-calendar-check-fill hs-nav-icon"></span>
+
+                    <span>Appointments</span>
+
+                </NavLink>
+            }
+
+
+            <!-- ===================== -->
+            <!-- PRACTITIONER -->
+            <!-- ===================== -->
+
+            @if (RoleHelper.IsPractitioner(
+                AuthService.CurrentUser?.Role))
+            {
+                <div class="hs-nav-section-title">
+                    CLINICAL
+                </div>
+
+
+                <NavLink class="hs-nav-link"
+                         href="appointments">
+
+                    <span class="bi bi-calendar-check-fill hs-nav-icon"></span>
+
+                    <span>Appointments</span>
+
+                </NavLink>
+
+
+                <NavLink class="hs-nav-link"
+                         href="patients">
+
+                    <span class="bi bi-person-vcard-fill hs-nav-icon"></span>
+
+                    <span>Patients</span>
+
+                </NavLink>
+
+
+                <NavLink class="hs-nav-link"
+                         href="medical-records">
+
+                    <span class="bi bi-file-medical-fill hs-nav-icon"></span>
+
+                    <span>Medical Records</span>
+
+                </NavLink>
+
+
+                <NavLink class="hs-nav-link"
+                         href="visit-notes">
+
+                    <span class="bi bi-journal-medical hs-nav-icon"></span>
+
+                    <span>Visit Notes</span>
+
+                </NavLink>
+
+
+                <NavLink class="hs-nav-link"
+                         href="medications">
+
+                    <span class="bi bi-capsule-pill hs-nav-icon"></span>
+
+                    <span>Medications</span>
+
+                </NavLink>
+
+
+                <NavLink class="hs-nav-link"
+                         href="prescriptions">
+
+                    <span class="bi bi-prescription2 hs-nav-icon"></span>
+
+                    <span>Prescriptions</span>
+
+                </NavLink>
+
+
+                <NavLink class="hs-nav-link"
+                         href="medication-requests">
+
+                    <span class="bi bi-capsule-pill hs-nav-icon"></span>
+
+                    <span>Medication Requests</span>
+
+                </NavLink>
+            }
+
+
+            <!-- ===================== -->
+            <!-- PHARMACIST -->
+            <!-- ===================== -->
+
+            @if (RoleHelper.IsPharmacist(
+                AuthService.CurrentUser?.Role))
+            {
+                <div class="hs-nav-section-title">
+                    PHARMACY
+                </div>
+
+
+                <NavLink class="hs-nav-link"
+                         href="prescriptions">
+
+                    <span class="bi bi-prescription2 hs-nav-icon"></span>
+
+                    <span>Prescriptions</span>
+
+                </NavLink>
+
+
+                <NavLink class="hs-nav-link"
+                         href="medications">
+
+                    <span class="bi bi-capsule-pill hs-nav-icon"></span>
+
+                    <span>Medications</span>
+
+                </NavLink>
+
+
+                <NavLink class="hs-nav-link"
+                         href="medical-records">
+
+                    <span class="bi bi-file-medical-fill hs-nav-icon"></span>
+
+                    <span>Medical Records</span>
+
+                </NavLink>
+
+
+                <NavLink class="hs-nav-link"
+                         href="medication-requests">
+
+                    <span class="bi bi-capsule-pill hs-nav-icon"></span>
+
+                    <span>Medication Requests</span>
+
+                </NavLink>
+            }
+
+        }
+
+    </div>
+
+
+    @if (AuthService.IsAuthenticated)
+    {
+        <div class="hs-nav-bottom">
+
+            <button class="hs-logout-button"
+                    @onclick="Logout">
+
+                <span class="bi bi-box-arrow-right"></span>
+
+                <span>Logout</span>
+
+            </button>
+
+        </div>
+    }
+    else
+    {
+        <div class="hs-nav-bottom">
+
+            <NavLink class="hs-nav-link"
+                     href="login">
+
+                <span class="bi bi-box-arrow-in-right hs-nav-icon"></span>
+
+                <span>Login</span>
+
+            </NavLink>
+
+        </div>
+    }
+
+</div>
+
+
+@code {
+
+    protected override void OnInitialized()
+    {
+        AuthService.AuthenticationStateChanged +=
+            OnAuthenticationStateChanged;
+    }
+
+
+    private void OnAuthenticationStateChanged()
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+
+    private async Task Logout()
+    {
+        await AuthService.LogoutAsync();
+
+        Navigation.NavigateTo("/login");
+    }
+
+
+    public void Dispose()
+    {
+        AuthService.AuthenticationStateChanged -=
+            OnAuthenticationStateChanged;
+    }
+}

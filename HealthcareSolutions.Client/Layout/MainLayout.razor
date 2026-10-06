@@ -1,0 +1,103 @@
+﻿@inherits LayoutComponentBase
+
+
+<div class="hs-app-shell">
+
+    <aside class="hs-sidebar">
+
+        <div class="hs-sidebar-brand">
+
+            <div class="hs-brand-icon">
+                <span class="bi bi-heart-pulse-fill"></span>
+            </div>
+
+            <div class="hs-brand-text">
+                <strong>Healthcare</strong>
+                <span>Solutions</span>
+            </div>
+
+        </div>
+
+        <NavMenu />
+
+    </aside>
+
+
+    <div class="hs-main-area">
+
+        <header class="hs-topbar">
+
+            <div class="hs-topbar-title">
+
+                <div class="hs-mobile-menu">
+                    <button class="hs-menu-button"
+                            aria-label="Open navigation"
+                            @onclick="ToggleMobileMenu">
+                        <span class="bi bi-list"></span>
+                    </button>
+                </div>
+
+                <div>
+                    <span class="hs-topbar-label">
+                        Healthcare Management System
+                    </span>
+
+                    <span class="hs-topbar-subtitle">
+                        Secure clinical and patient management
+                    </span>
+                </div>
+
+            </div>
+
+            @if (AuthService.IsAuthenticated)
+            {
+                <div class="hs-user-area">
+
+                    <div class="hs-user-avatar">
+                        <span class="bi bi-person-fill"></span>
+                    </div>
+
+                    <div class="hs-user-details">
+
+                        <strong>
+                            @AuthService.CurrentUser?.Username
+                        </strong>
+
+                        <span>
+                            @AuthService.CurrentUser?.Role
+                        </span>
+
+                    </div>
+
+                </div>
+            }
+
+        </header>
+
+
+        <main class="hs-content">
+
+            <div class="hs-content-inner">
+
+                @Body
+
+            </div>
+
+        </main>
+
+    </div>
+
+</div>
+
+
+@code {
+
+    [Inject]
+    private AuthService AuthService { get; set; } = default!;
+
+    private void ToggleMobileMenu()
+    {
+        // Navigation is handled by NavMenu.
+        // This method is intentionally kept simple for now.
+    }
+}

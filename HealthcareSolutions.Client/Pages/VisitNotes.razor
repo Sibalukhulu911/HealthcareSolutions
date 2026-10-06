@@ -1,0 +1,1194 @@
+@page "/visit-notes"
+
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+@inject VisitNoteApiService VisitNoteApiService
+@inject MedicalRecordApiService MedicalRecordApiService
+@inject PatientApiService PatientApiService
+@inject PractitionerApiService PractitionerApiService
+
+<PageTitle>Visit Notes</PageTitle>
+
+@if (!AuthService.IsAuthenticated || !CanView)
+{
+    <div class="hs-access-denied">
+
+        <div class="hs-access-icon">
+            !
+        </div>
+
+        <h2>Access Denied</h2>
+
+        <p>
+            You do not have permission to access visit notes.
+        </p>
+
+    </div>
+}
+else
+{
+    <div class="hs-page">
+
+        <!-- PAGE HEADER -->
+        <div class="hs-page-header">
+
+            <div>
+
+                <span class="hs-eyebrow">
+                    Clinical Documentation
+                </span>
+
+                <h1>Visit Notes</h1>
+
+                <p>
+                    Record and review observations, diagnoses and
+                    treatment information for patient visits.
+                </p>
+
+            </div>
+
+        </div>
+
+        <!-- ALERTS -->
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="alert alert-danger hs-page-alert">
+                <strong>Something went wrong.</strong>
+
+                <div>
+                    @errorMessage
+                </div>
+            </div>
+
+            <button type="button"
+                    class="btn btn-secondary"
+                    @onclick="LoadPageData"
+                    disabled="@isLoadingPage">
+
+                Try Again
+
+            </button>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(successMessage))
+        {
+            <div class="alert alert-success hs-page-alert">
+                @successMessage
+            </div>
+        }
+
+        @if (isLoadingPage)
+        {
+            <div class="hs-glass-card hs-loading">
+
+                <div class="hs-spinner"></div>
+
+                <p>
+                    Loading visit notes data...
+                </p>
+
+            </div>
+        }
+        else
+        {
+            <!-- MEDICAL RECORD SELECTOR -->
+            <div class="hs-glass-card hs-record-selector">
+
+                <div class="hs-section-header">
+
+                    <div>
+
+                        <span class="hs-eyebrow">
+                            Patient Record
+                        </span>
+
+                        <h2>Select Medical Record</h2>
+
+                        <p>
+                            Select a medical record to view its
+                            existing visit notes.
+                            @if (CanCreate)
+                            {
+                                <span>
+                                    You can also add a new visit note.
+                                </span>
+                            }
+                        </p>
+
+                    </div>
+
+                    <div class="hs-record-selector-icon">
+                        MR
+                    </div>
+
+                </div>
+
+                @if (medicalRecords.Count == 0)
+                {
+                    <div class="hs-empty-state">
+
+                        <div class="hs-empty-icon">
+                            MR
+                        </div>
+
+                        <h3>No Medical Records Available</h3>
+
+                        <p>
+                            There are currently no medical records
+                            available for visit notes.
+                        </p>
+
+                        <p class="hs-muted">
+                            Create a medical record first before
+                            adding visit notes.
+                        </p>
+
+                    </div>
+                }
+                else
+                {
+                    <div class="hs-record-select">
+
+                        <label for="visit-record">
+                            Medical Record
+                        </label>
+
+                        <select id="visit-record"
+                                class="form-select"
+                                @bind="selectedMedicalRecordId"
+                                @bind:after="LoadVisitNotes"
+                                disabled="@isLoadingNotes">
+
+                            <option value="0">
+                                -- Select Medical Record --
+                            </option>
+
+                            @foreach (var record in medicalRecords)
+                            {
+                                <option value="@record.MedicalRecordId">
+                                    @GetPatientName(record.PatientId)
+                                    - Record #@record.MedicalRecordId
+                                </option>
+                            }
+
+                        </select>
+
+                    </div>
+                }
+
+            </div>
+
+            @if (selectedMedicalRecordId > 0)
+            {
+                <!-- VISIT NOTE SUMMARY -->
+                <div class="hs-summary-row">
+
+                    <div class="hs-summary-card">
+
+                        <div class="hs-summary-icon">
+                            VN
+                        </div>
+
+                        <div>
+
+                            <span class="hs-summary-label">
+                                Visit Notes
+                            </span>
+
+                            <strong class="hs-summary-value">
+                                @visitNotes.Count
+                            </strong>
+
+                        </div>
+
+                    </div>
+
+                    <div class="hs-summary-card">
+
+                        <div class="hs-summary-icon">
+                            PT
+                        </div>
+
+                        <div>
+
+                            <span class="hs-summary-label">
+                                Patient
+                            </span>
+
+                            <strong class="hs-summary-value hs-summary-name">
+                                @GetPatientNameForSelectedRecord()
+                            </strong>
+
+                        </div>
+
+                    </div>
+
+                    <div class="hs-summary-card">
+
+                        <div class="hs-summary-icon">
+                            MR
+                        </div>
+
+                        <div>
+
+                            <span class="hs-summary-label">
+                                Record
+                            </span>
+
+                            <strong class="hs-summary-value">
+                                #@selectedMedicalRecordId
+                            </strong>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+                <!-- EXISTING VISIT NOTES -->
+                <div class="hs-glass-card hs-visit-notes-table-card">
+
+                    <div class="hs-table-header">
+
+                        <div>
+
+                            <span class="hs-eyebrow">
+                                Clinical History
+                            </span>
+
+                            <h2>Existing Visit Notes</h2>
+
+                            <p>
+                                Review notes recorded for the selected
+                                medical record.
+                            </p>
+
+                        </div>
+
+                        @if (isLoadingNotes)
+                        {
+                            <div class="hs-inline-loading">
+                                <div class="hs-spinner hs-spinner-small"></div>
+                                Loading...
+                            </div>
+                        }
+
+                    </div>
+
+                    @if (isLoadingNotes)
+                    {
+                        <div class="hs-loading hs-loading-small">
+
+                            <div class="hs-spinner"></div>
+
+                            <p>
+                                Loading visit notes...
+                            </p>
+
+                        </div>
+                    }
+                    else if (visitNotes.Count == 0)
+                    {
+                        <div class="hs-empty-state">
+
+                            <div class="hs-empty-icon">
+                                VN
+                            </div>
+
+                            <h3>No Visit Notes Found</h3>
+
+                            <p>
+                                No visit notes have been recorded
+                                for this medical record yet.
+                            </p>
+
+                            @if (CanCreate)
+                            {
+                                <p class="hs-muted">
+                                    Use the form below to record
+                                    the first visit note.
+                                </p>
+                            }
+
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="hs-table-wrapper">
+
+                            <table class="hs-data-table">
+
+                                <thead>
+
+                                    <tr>
+
+                                        <th>Date</th>
+                                        <th>Appointment</th>
+                                        <th>Practitioner</th>
+                                        <th>Diagnosis</th>
+                                        <th>Treatment</th>
+
+                                        @if (CanEdit)
+                                        {
+                                            <th>Action</th>
+                                        }
+
+                                    </tr>
+
+                                </thead>
+
+                                <tbody>
+
+                                    @foreach (var note in visitNotes)
+                                    {
+                                        <tr>
+
+                                            <td>
+
+                                                <div class="hs-datetime-cell">
+
+                                                    <strong>
+                                                        @(note.CreatedAt
+                                                            .ToString(
+                                                                "dd/MM/yyyy"))
+                                                    </strong>
+
+                                                    <span class="hs-muted">
+                                                        @(note.CreatedAt
+                                                            .ToString(
+                                                                "HH:mm"))
+                                                    </span>
+
+                                                </div>
+
+                                            </td>
+
+                                            <td>
+
+                                                <span class="hs-id-label">
+                                                    #@note.AppointmentId
+                                                </span>
+
+                                            </td>
+
+                                            <td>
+
+                                                <div class="hs-practitioner-cell">
+
+                                                    <div class="hs-practitioner-avatar">
+                                                        @GetPractitionerInitials(
+                                                            note.PractitionerId)
+                                                    </div>
+
+                                                    <strong>
+                                                        @GetPractitionerName(
+                                                            note.PractitionerId)
+                                                    </strong>
+
+                                                </div>
+
+                                            </td>
+
+                                            <td>
+
+                                                @if (string.IsNullOrWhiteSpace(
+                                                    note.Diagnosis))
+                                                {
+                                                    <span class="hs-muted">
+                                                        No diagnosis recorded
+                                                    </span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="hs-clinical-text">
+                                                        @note.Diagnosis
+                                                    </span>
+                                                }
+
+                                            </td>
+
+                                            <td>
+
+                                                @if (string.IsNullOrWhiteSpace(
+                                                    note.Treatment))
+                                                {
+                                                    <span class="hs-muted">
+                                                        No treatment recorded
+                                                    </span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="hs-clinical-text">
+                                                        @note.Treatment
+                                                    </span>
+                                                }
+
+                                            </td>
+
+                                            @if (CanEdit)
+                                            {
+                                                <td>
+
+                                                    <button
+                                                        type="button"
+                                                        class="btn btn-small"
+                                                        @onclick="() =>
+                                                            EditNote(note)"
+                                                        disabled="@isSaving">
+
+                                                        Edit
+
+                                                    </button>
+
+                                                </td>
+                                            }
+
+                                        </tr>
+                                    }
+
+                                </tbody>
+
+                            </table>
+
+                        </div>
+                    }
+
+                </div>
+
+                <!-- EDIT VISIT NOTE -->
+                @if (CanEdit && editingNote != null)
+                {
+                    <div class="hs-glass-card hs-visit-form">
+
+                        <div class="hs-section-header">
+
+                            <div>
+
+                                <span class="hs-eyebrow">
+                                    Update Clinical Record
+                                </span>
+
+                                <h2>Edit Visit Note</h2>
+
+                                <p>
+                                    Update the observations, diagnosis
+                                    or treatment information.
+                                </p>
+
+                            </div>
+
+                            <button type="button"
+                                    class="btn btn-secondary"
+                                    @onclick="CancelEdit"
+                                    disabled="@isSaving">
+
+                                Cancel
+
+                            </button>
+
+                        </div>
+
+                        <EditForm Model="editRequest"
+                                  OnValidSubmit="UpdateNote">
+
+                            <DataAnnotationsValidator />
+
+                            <ValidationSummary />
+
+                            @if (!string.IsNullOrWhiteSpace(
+                                editErrorMessage))
+                            {
+                                <div class="alert alert-danger">
+                                    @editErrorMessage
+                                </div>
+                            }
+
+                            <div class="hs-form-grid hs-visit-form-grid">
+
+                                <div class="form-group hs-form-full">
+
+                                    <label for="edit-notes">
+                                        Notes / Observations
+                                    </label>
+
+                                    <textarea id="edit-notes"
+                                              class="form-control"
+                                              rows="6"
+                                              @bind="editRequest.Notes"
+                                              disabled="@isSaving">
+                                    </textarea>
+
+                                    <ValidationMessage
+                                        For="@(() =>
+                                            editRequest.Notes)" />
+
+                                </div>
+
+                                <div class="form-group">
+
+                                    <label for="edit-diagnosis">
+                                        Diagnosis
+                                    </label>
+
+                                    <textarea id="edit-diagnosis"
+                                              class="form-control"
+                                              rows="4"
+                                              @bind="editRequest.Diagnosis"
+                                              disabled="@isSaving">
+                                    </textarea>
+
+                                </div>
+
+                                <div class="form-group">
+
+                                    <label for="edit-treatment">
+                                        Treatment
+                                    </label>
+
+                                    <textarea id="edit-treatment"
+                                              class="form-control"
+                                              rows="4"
+                                              @bind="editRequest.Treatment"
+                                              disabled="@isSaving">
+                                    </textarea>
+
+                                </div>
+
+                            </div>
+
+                            <div class="hs-modal-footer">
+
+                                <button type="button"
+                                        class="btn btn-secondary"
+                                        @onclick="CancelEdit"
+                                        disabled="@isSaving">
+
+                                    Cancel
+
+                                </button>
+
+                                <button type="submit"
+                                        class="btn btn-primary"
+                                        disabled="@isSaving">
+
+                                    @if (isSaving)
+                                    {
+                                        <span class="hs-button-spinner"></span>
+                                        <span>Saving...</span>
+                                    }
+                                    else
+                                    {
+                                        <span>Save Changes</span>
+                                    }
+
+                                </button>
+
+                            </div>
+
+                        </EditForm>
+
+                    </div>
+                }
+
+                <!-- ADD VISIT NOTE -->
+                @if (CanCreate)
+                {
+                    <div class="hs-glass-card hs-visit-form">
+
+                        <div class="hs-section-header">
+
+                            <div>
+
+                                <span class="hs-eyebrow">
+                                    Clinical Documentation
+                                </span>
+
+                                <h2>Add Visit Note</h2>
+
+                                <p>
+                                    Record the observations, diagnosis
+                                    and treatment associated with this visit.
+                                </p>
+
+                            </div>
+
+                            <div class="hs-record-selector-icon">
+                                +
+                            </div>
+
+                        </div>
+
+                        <EditForm Model="createRequest"
+                                  OnValidSubmit="CreateNote">
+
+                            <DataAnnotationsValidator />
+
+                            <ValidationSummary />
+
+                            @if (!string.IsNullOrWhiteSpace(
+                                createErrorMessage))
+                            {
+                                <div class="alert alert-danger">
+                                    @createErrorMessage
+                                </div>
+                            }
+
+                            <div class="hs-form-grid hs-visit-form-grid">
+
+                                <div class="form-group">
+
+                                    <label for="visit-practitioner">
+                                        Practitioner
+                                    </label>
+
+                                    <select id="visit-practitioner"
+                                            class="form-select"
+                                            @bind="createRequest.PractitionerId"
+                                            disabled="@isSaving">
+
+                                        <option value="0">
+                                            -- Select Practitioner --
+                                        </option>
+
+                                        @foreach (var practitioner
+                                            in practitioners)
+                                        {
+                                            <option value="@practitioner.PractitionerId">
+                                                @practitioner.FirstName
+                                                @(" ")
+                                                @practitioner.LastName
+                                                -
+                                                @practitioner.Specialty
+                                            </option>
+                                        }
+
+                                    </select>
+
+                                    <ValidationMessage
+                                        For="@(() =>
+                                            createRequest.PractitionerId)" />
+
+                                </div>
+
+                                <div class="form-group">
+
+                                    <label for="visit-appointment">
+                                        Appointment ID
+                                    </label>
+
+                                    <input id="visit-appointment"
+                                           type="number"
+                                           class="form-control"
+                                           @bind="createRequest.AppointmentId"
+                                           disabled="@isSaving" />
+
+                                    <ValidationMessage
+                                        For="@(() =>
+                                            createRequest.AppointmentId)" />
+
+                                    <small class="form-help">
+                                        Enter the appointment associated
+                                        with this visit.
+                                    </small>
+
+                                </div>
+
+                                <div class="form-group hs-form-full">
+
+                                    <label for="visit-notes">
+                                        Notes / Observations
+                                    </label>
+
+                                    <textarea id="visit-notes"
+                                              class="form-control"
+                                              rows="6"
+                                              @bind="createRequest.Notes"
+                                              disabled="@isSaving">
+                                    </textarea>
+
+                                    <ValidationMessage
+                                        For="@(() =>
+                                            createRequest.Notes)" />
+
+                                </div>
+
+                                <div class="form-group">
+
+                                    <label for="visit-diagnosis">
+                                        Diagnosis
+                                    </label>
+
+                                    <textarea id="visit-diagnosis"
+                                              class="form-control"
+                                              rows="4"
+                                              @bind="createRequest.Diagnosis"
+                                              disabled="@isSaving">
+                                    </textarea>
+
+                                </div>
+
+                                <div class="form-group">
+
+                                    <label for="visit-treatment">
+                                        Treatment
+                                    </label>
+
+                                    <textarea id="visit-treatment"
+                                              class="form-control"
+                                              rows="4"
+                                              @bind="createRequest.Treatment"
+                                              disabled="@isSaving">
+                                    </textarea>
+
+                                </div>
+
+                            </div>
+
+                            <div class="hs-modal-footer">
+
+                                <button type="submit"
+                                        class="btn btn-primary"
+                                        disabled="@isSaving">
+
+                                    @if (isSaving)
+                                    {
+                                        <span class="hs-button-spinner"></span>
+                                        <span>Saving...</span>
+                                    }
+                                    else
+                                    {
+                                        <span>Save Visit Note</span>
+                                    }
+
+                                </button>
+
+                            </div>
+
+                        </EditForm>
+
+                    </div>
+                }
+            }
+
+        }
+
+    </div>
+}
+
+@code {
+
+    private List<MedicalRecordResponse> medicalRecords = new();
+
+    private List<VisitNoteResponse> visitNotes = new();
+
+    private List<PractitionerResponse> practitioners = new();
+
+    private List<PatientResponse> patients = new();
+
+    private int selectedMedicalRecordId;
+
+    private VisitNoteCreateRequest createRequest = new();
+
+    private VisitNoteResponse? editingNote;
+
+    private VisitNoteUpdateRequest editRequest = new();
+
+    private bool isLoadingPage;
+    private bool isLoadingNotes;
+    private bool isSaving;
+
+    private string? errorMessage;
+    private string? successMessage;
+    private string? createErrorMessage;
+    private string? editErrorMessage;
+
+    private bool CanView =>
+        AuthService.IsAuthenticated
+        && (
+            RoleHelper.IsAdmin(
+                AuthService.CurrentUser?.Role)
+            ||
+            RoleHelper.IsPractitioner(
+                AuthService.CurrentUser?.Role)
+        );
+
+    private bool CanCreate =>
+        AuthService.IsAuthenticated
+        && RoleHelper.IsPractitioner(
+            AuthService.CurrentUser?.Role);
+
+    private bool CanEdit => CanCreate;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await AuthService.RestoreSessionAsync();
+
+        if (!AuthService.IsAuthenticated)
+        {
+            isLoadingPage = false;
+            return;
+        }
+
+        if (!CanView)
+        {
+            isLoadingPage = false;
+            return;
+        }
+
+        await LoadPageData();
+    }
+
+    private async Task LoadPageData()
+    {
+       	if (!CanView)
+	{
+    		return;
+	}
+
+        isLoadingPage = true;
+
+	errorMessage = null;
+	createErrorMessage = null;
+	editErrorMessage = null;
+
+        try
+        {
+            patients =
+                (await PatientApiService.GetAllAsync())
+                .ToList();
+
+            practitioners =
+                (await PractitionerApiService.GetAllAsync())
+                .ToList();
+
+            medicalRecords.Clear();
+
+            foreach (var patient in patients)
+            {
+                var record =
+                    await MedicalRecordApiService
+                        .GetByPatientIdAsync(
+                            patient.PatientId);
+
+                if (record != null)
+                {
+                    medicalRecords.Add(record);
+                }
+            }
+
+            SetCurrentPractitioner();
+        }
+        catch (Exception ex)
+        {
+            errorMessage =
+                $"Unable to load visit notes data: {ex.Message}";
+        }
+        finally
+        {
+            isLoadingPage = false;
+        }
+    }
+
+    private void SetCurrentPractitioner()
+    {
+        if (AuthService.CurrentUser == null)
+        {
+            return;
+        }
+
+        if (!RoleHelper.IsPractitioner(
+            AuthService.CurrentUser.Role))
+        {
+            return;
+        }
+
+        var currentPractitioner =
+            practitioners.FirstOrDefault(
+                p => p.UserId ==
+                     AuthService.CurrentUser.UserId);
+
+        if (currentPractitioner != null)
+        {
+            createRequest.PractitionerId =
+                currentPractitioner.PractitionerId;
+        }
+    }
+
+    private async Task LoadVisitNotes()
+    {
+        if (!CanView)
+        {
+            return;
+        }
+
+        errorMessage = null;
+	createErrorMessage = null;
+	editErrorMessage = null;
+	editingNote = null;
+
+        if (selectedMedicalRecordId <= 0)
+        {
+            visitNotes.Clear();
+            return;
+        }
+
+        isLoadingNotes = true;
+
+        try
+        {
+            visitNotes =
+                await VisitNoteApiService
+                    .GetByMedicalRecordIdAsync(
+                        selectedMedicalRecordId);
+
+            createRequest =
+                new VisitNoteCreateRequest
+                {
+                    MedicalRecordId =
+                        selectedMedicalRecordId
+                };
+
+            SetCurrentPractitioner();
+        }
+        catch (Exception ex)
+        {
+            errorMessage =
+                $"Unable to load visit notes: {ex.Message}";
+        }
+        finally
+        {
+            isLoadingNotes = false;
+        }
+    }
+
+    private async Task CreateNote()
+    {
+        if (!CanCreate || isSaving)
+        {
+            return;
+        }
+
+        if (selectedMedicalRecordId <= 0)
+        {
+            createErrorMessage =
+                "Please select a medical record before saving a visit note.";
+
+            return;
+        }
+
+        if (createRequest.PractitionerId <= 0)
+        {
+            createErrorMessage =
+                "Please select a practitioner.";
+
+            return;
+        }
+
+        if (createRequest.AppointmentId <= 0)
+        {
+            createErrorMessage =
+                "Please enter a valid appointment ID.";
+
+            return;
+        }
+
+        errorMessage = null;
+        successMessage = null;
+        createErrorMessage = null;
+        isSaving = true;
+
+        try
+        {
+            createRequest.MedicalRecordId =
+                selectedMedicalRecordId;
+
+            await VisitNoteApiService.CreateAsync(
+                createRequest);
+
+            successMessage =
+                "Visit note saved successfully.";
+
+            await LoadVisitNotes();
+
+            createRequest =
+                new VisitNoteCreateRequest
+                {
+                    MedicalRecordId =
+                        selectedMedicalRecordId
+                };
+
+            SetCurrentPractitioner();
+        }
+        catch (Exception ex)
+        {
+            createErrorMessage =
+                $"Unable to save visit note: {ex.Message}";
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private void EditNote(
+        VisitNoteResponse note)
+    {
+        if (!CanEdit || isSaving)
+        {
+            return;
+        }
+
+        editingNote = note;
+
+        editRequest =
+            new VisitNoteUpdateRequest
+            {
+                Notes = note.Notes,
+                Diagnosis = note.Diagnosis,
+                Treatment = note.Treatment
+            };
+
+        errorMessage = null;
+        successMessage = null;
+        createErrorMessage = null;
+        editErrorMessage = null;
+    }
+
+    private async Task UpdateNote()
+    {
+        if (!CanEdit ||
+            editingNote == null ||
+            isSaving)
+        {
+            return;
+        }
+
+        errorMessage = null;
+        successMessage = null;
+        editErrorMessage = null;
+        isSaving = true;
+
+        try
+        {
+            await VisitNoteApiService.UpdateAsync(
+                editingNote.VisitNoteId,
+                editRequest);
+
+            successMessage =
+                "Visit note updated successfully.";
+
+            editingNote = null;
+
+            await LoadVisitNotes();
+        }
+        catch (Exception ex)
+        {
+            editErrorMessage =
+                $"Unable to update visit note: {ex.Message}";
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private void CancelEdit()
+    {
+        if (isSaving)
+        {
+            return;
+        }
+
+        editingNote = null;
+
+        editRequest =
+            new VisitNoteUpdateRequest();
+
+        editErrorMessage = null;
+    }
+
+    private string GetPatientName(
+        int patientId)
+    {
+        var patient =
+            patients.FirstOrDefault(
+                p => p.PatientId == patientId);
+
+        if (patient == null)
+        {
+            return $"Patient #{patientId}";
+        }
+
+        return
+            $"{patient.FirstName} {patient.LastName}";
+    }
+
+    private string GetPatientNameForSelectedRecord()
+    {
+        var record =
+            medicalRecords.FirstOrDefault(
+                r => r.MedicalRecordId ==
+                     selectedMedicalRecordId);
+
+        if (record == null)
+        {
+            return $"Record #{selectedMedicalRecordId}";
+        }
+
+        return GetPatientName(record.PatientId);
+    }
+
+    private string GetPractitionerName(
+        int practitionerId)
+    {
+        var practitioner =
+            practitioners.FirstOrDefault(
+                p => p.PractitionerId ==
+                     practitionerId);
+
+        if (practitioner == null)
+        {
+            return $"Practitioner #{practitionerId}";
+        }
+
+        return
+            $"{practitioner.FirstName} " +
+            $"{practitioner.LastName}";
+    }
+
+    private string GetPractitionerInitials(
+        int practitionerId)
+    {
+        var practitioner =
+            practitioners.FirstOrDefault(
+                p => p.PractitionerId ==
+                     practitionerId);
+
+        if (practitioner == null)
+        {
+            return "DR";
+        }
+
+        var firstInitial =
+            string.IsNullOrWhiteSpace(
+                practitioner.FirstName)
+                ? string.Empty
+                : practitioner.FirstName[0]
+                    .ToString();
+
+        var lastInitial =
+            string.IsNullOrWhiteSpace(
+                practitioner.LastName)
+                ? string.Empty
+                : practitioner.LastName[0]
+                    .ToString();
+
+        var initials =
+            $"{firstInitial}{lastInitial}"
+                .ToUpperInvariant();
+
+        return string.IsNullOrWhiteSpace(initials)
+            ? "DR"
+            : initials;
+    }
+}

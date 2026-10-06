@@ -1,0 +1,897 @@
+@page "/patients"
+
+@using HealthcareSolutions.Client.Models
+
+@inject AuthService AuthService
+@inject PatientApiService PatientApiService
+@inject NavigationManager Navigation
+
+<PageTitle>Patients</PageTitle>
+
+@if (!AuthService.IsAuthenticated)
+{
+    <div class="hs-access-denied">
+
+        <div class="hs-access-icon">
+            <span class="bi bi-lock-fill"></span>
+        </div>
+
+        <h2>Access Denied</h2>
+
+        <p>Please log in to access patient information.</p>
+
+    </div>
+}
+else if (!CanAccess)
+{
+    <div class="hs-access-denied">
+
+        <div class="hs-access-icon">
+            <span class="bi bi-shield-lock-fill"></span>
+        </div>
+
+        <h2>Access Denied</h2>
+
+        <p>
+            You do not have permission to access patient information.
+        </p>
+
+    </div>
+}
+else
+{
+    <div class="hs-page">
+
+        <!-- =====================================================
+             PAGE HEADER
+             ===================================================== -->
+
+        <div class="hs-page-header">
+
+            <div>
+
+                <div class="hs-page-eyebrow">
+                    Patient Management
+                </div>
+
+                <h1>
+                    Patients
+                </h1>
+
+                <p>
+                    @(CanManagePatients
+                        ? "Register, manage and view patient information."
+                        : "View patient information and clinical details.")
+                </p>
+
+            </div>
+
+
+            @if (CanManagePatients)
+            {
+                <button class="btn btn-primary hs-header-action"
+                        @onclick="ShowCreateForm"
+                        disabled="@saving">
+
+                    <span class="bi bi-person-plus-fill"></span>
+
+                    Add Patient
+
+                </button>
+            }
+
+        </div>
+
+
+        <!-- =====================================================
+             SUCCESS MESSAGE
+             ===================================================== -->
+
+        @if (!string.IsNullOrWhiteSpace(successMessage))
+        {
+            <div class="alert alert-success hs-page-alert">
+
+                <span class="bi bi-check-circle-fill"></span>
+
+                <span>@successMessage</span>
+
+            </div>
+        }
+
+
+        <!-- =====================================================
+             ERROR
+             ===================================================== -->
+
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="alert alert-danger hs-page-alert">
+
+                <span class="bi bi-exclamation-triangle-fill"></span>
+
+                <span>@errorMessage</span>
+
+            </div>
+
+            <button class="btn btn-secondary"
+                    @onclick="LoadPatients"
+                    disabled="@loading">
+
+                <span class="bi bi-arrow-clockwise"></span>
+
+                Try Again
+
+            </button>
+        }
+
+
+        @if (loading)
+        {
+            <!-- =================================================
+                 LOADING
+                 ================================================= -->
+
+            <div class="hs-glass-card hs-page-loading">
+
+                <div class="hs-spinner"></div>
+
+                <p>Loading patients...</p>
+
+            </div>
+        }
+        else if (string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <!-- =================================================
+                 PATIENT SUMMARY
+                 ================================================= -->
+
+            <div class="hs-summary-row">
+
+                <div class="hs-summary-card">
+
+                    <div class="hs-summary-icon hs-summary-green">
+                        <span class="bi bi-people-fill"></span>
+                    </div>
+
+                    <div>
+
+                        <span class="hs-summary-label">
+                            Registered Patients
+                        </span>
+
+                        <strong>
+                            @patients.Count
+                        </strong>
+
+                    </div>
+
+                </div>
+
+
+                <div class="hs-summary-card">
+
+                    <div class="hs-summary-icon hs-summary-blue">
+                        <span class="bi bi-person-check-fill"></span>
+                    </div>
+
+                    <div>
+
+                        <span class="hs-summary-label">
+                            Patient Records
+                        </span>
+
+                        <strong>
+                            @patients.Count
+                        </strong>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- =================================================
+                 PATIENT LIST
+                 ================================================= -->
+
+            <div class="hs-glass-card hs-table-card">
+
+                <div class="hs-table-header">
+
+                    <div>
+
+                        <h2>
+                            Patient Directory
+                        </h2>
+
+                        <p>
+                            View registered patients and their information.
+                        </p>
+
+                    </div>
+
+
+                    <button class="btn btn-secondary btn-small"
+                            @onclick="LoadPatients"
+                            disabled="@loading">
+
+                        <span class="bi bi-arrow-clockwise"></span>
+
+                        Refresh
+
+                    </button>
+
+                </div>
+
+
+                @if (patients.Count == 0)
+                {
+                    <div class="hs-empty-state">
+
+                        <div class="hs-empty-icon">
+                            <span class="bi bi-people"></span>
+                        </div>
+
+                        <h3>No Patients Found</h3>
+
+                        <p>
+                            There are currently no patients registered
+                            in the system.
+                        </p>
+
+                        @if (CanManagePatients)
+                        {
+                            <button class="btn btn-primary"
+                                    @onclick="ShowCreateForm"
+                                    disabled="@saving">
+
+                                <span class="bi bi-person-plus-fill"></span>
+
+                                Add First Patient
+
+                            </button>
+                        }
+
+                    </div>
+                }
+                else
+                {
+                    <div class="hs-table-wrapper">
+
+                        <table class="hs-data-table">
+
+                            <thead>
+
+                                <tr>
+
+                                    <th>Patient</th>
+
+                                    <th>Date of Birth</th>
+
+                                    <th>Gender</th>
+
+                                    <th>Contact</th>
+
+                                    <th>Email</th>
+
+                                    @if (CanManagePatients)
+                                    {
+                                        <th class="hs-actions-column">
+                                            Actions
+                                        </th>
+                                    }
+
+                                </tr>
+
+                            </thead>
+
+
+                            <tbody>
+
+                                @foreach (var patient in patients)
+                                {
+                                    <tr>
+
+                                        <td>
+
+                                            <div class="hs-patient-cell">
+
+                                                <div class="hs-patient-avatar">
+                                                    <span class="bi bi-person-fill"></span>
+                                                </div>
+
+                                                <div>
+
+                                                    <strong>
+                                                        @patient.FirstName
+                                                        @patient.LastName
+                                                    </strong>
+
+                                                    <small>
+                                                        Patient #@patient.PatientId
+                                                    </small>
+
+                                                </div>
+
+                                            </div>
+
+                                        </td>
+
+
+                                        <td>
+                                            @patient.DateOfBirth.ToString(
+                                                "dd/MM/yyyy")
+                                        </td>
+
+
+                                        <td>
+
+                                            <span class="hs-data-badge">
+
+                                                @patient.Gender
+
+                                            </span>
+
+                                        </td>
+
+
+                                        <td>
+
+                                            @if (!string.IsNullOrWhiteSpace(
+                                                patient.PhoneNumber))
+                                            {
+                                                <span>
+                                                    @patient.PhoneNumber
+                                                </span>
+                                            }
+                                            else
+                                            {
+                                                <span class="hs-muted">
+                                                     
+                                                </span>
+                                            }
+
+                                        </td>
+
+
+                                        <td>
+
+                                            @if (!string.IsNullOrWhiteSpace(
+                                                patient.Email))
+                                            {
+                                                <span>
+                                                    @patient.Email
+                                                </span>
+                                            }
+                                            else
+                                            {
+                                                <span class="hs-muted">
+                                                     
+                                                </span>
+                                            }
+
+                                        </td>
+
+
+                                        @if (CanManagePatients)
+                                        {
+                                            <td class="hs-actions-column">
+
+                                                <button class="btn btn-small btn-secondary"
+                                                        @onclick="() => EditPatient(patient)"
+                                                        disabled="@saving">
+
+                                                    <span class="bi bi-pencil-fill"></span>
+
+                                                    Edit
+
+                                                </button>
+
+                                            </td>
+                                        }
+
+                                    </tr>
+                                }
+
+                            </tbody>
+
+                        </table>
+
+                    </div>
+                }
+
+            </div>
+        }
+
+    </div>
+
+
+    <!-- =========================================================
+         PATIENT MODAL
+         ========================================================= -->
+
+    @if (showForm && CanManagePatients)
+    {
+        <div class="hs-modal-overlay">
+
+            <div class="hs-modal hs-patient-modal">
+
+                <div class="hs-modal-header">
+
+                    <div>
+
+                        <div class="hs-modal-icon">
+                            <span class="bi bi-person-plus-fill"></span>
+                        </div>
+
+                        <div>
+
+                            <h2>
+                                @(editingPatientId.HasValue
+                                    ? "Edit Patient"
+                                    : "Add Patient")
+                            </h2>
+
+                            <p>
+                                @(editingPatientId.HasValue
+                                    ? "Update the patient's information."
+                                    : "Register a new patient in the system.")
+                            </p>
+
+                        </div>
+
+                    </div>
+
+
+                    <button type="button"
+                            class="hs-modal-close"
+                            @onclick="CancelForm"
+                            disabled="@saving"
+                            aria-label="Close">
+
+                        <span class="bi bi-x-lg"></span>
+
+                    </button>
+
+                </div>
+
+
+                <div class="hs-modal-body">
+
+                    <EditForm Model="patientForm"
+                              OnValidSubmit="SavePatient">
+
+                        <DataAnnotationsValidator />
+
+
+                        @if (!string.IsNullOrWhiteSpace(formErrorMessage))
+                        {
+                            <div class="alert alert-danger">
+
+                                <span class="bi bi-exclamation-triangle-fill"></span>
+
+                                @formErrorMessage
+
+                            </div>
+                        }
+
+
+                        <div class="hs-form-grid">
+
+                            <div class="form-group">
+
+                                <label for="firstName">
+                                    First Name
+                                </label>
+
+                                <InputText id="firstName"
+                                           class="form-control"
+                                           @bind-Value="patientForm.FirstName"
+                                           disabled="@saving" />
+
+                                <ValidationMessage
+                                    For="@(() => patientForm.FirstName)" />
+
+                            </div>
+
+
+                            <div class="form-group">
+
+                                <label for="lastName">
+                                    Last Name
+                                </label>
+
+                                <InputText id="lastName"
+                                           class="form-control"
+                                           @bind-Value="patientForm.LastName"
+                                           disabled="@saving" />
+
+                                <ValidationMessage
+                                    For="@(() => patientForm.LastName)" />
+
+                            </div>
+
+
+                            <div class="form-group">
+
+                                <label for="dateOfBirth">
+                                    Date of Birth
+                                </label>
+
+                                <InputDate id="dateOfBirth"
+                                           class="form-control"
+                                           @bind-Value="patientForm.DateOfBirth"
+                                           disabled="@saving" />
+
+                                <ValidationMessage
+                                    For="@(() => patientForm.DateOfBirth)" />
+
+                            </div>
+
+
+                            <div class="form-group">
+
+                                <label for="gender">
+                                    Gender
+                                </label>
+
+                                <InputSelect id="gender"
+                                             class="form-control"
+                                             @bind-Value="patientForm.Gender"
+                                             disabled="@saving">
+
+                                    <option value="">
+                                        Select gender
+                                    </option>
+
+                                    <option value="Male">
+                                        Male
+                                    </option>
+
+                                    <option value="Female">
+                                        Female
+                                    </option>
+
+                                    <option value="Other">
+                                        Other
+                                    </option>
+
+                                </InputSelect>
+
+                                <ValidationMessage
+                                    For="@(() => patientForm.Gender)" />
+
+                            </div>
+
+
+                            <div class="form-group">
+
+                                <label for="phoneNumber">
+                                    Phone Number
+                                </label>
+
+                                <InputText id="phoneNumber"
+                                           class="form-control"
+                                           @bind-Value="patientForm.PhoneNumber"
+                                           disabled="@saving" />
+
+                                <ValidationMessage
+                                    For="@(() => patientForm.PhoneNumber)" />
+
+                            </div>
+
+
+                            <div class="form-group">
+
+                                <label for="email">
+                                    Email
+                                </label>
+
+                                <InputText id="email"
+                                           type="email"
+                                           class="form-control"
+                                           @bind-Value="patientForm.Email"
+                                           disabled="@saving" />
+
+                                <ValidationMessage
+                                    For="@(() => patientForm.Email)" />
+
+                            </div>
+
+
+                            <div class="form-group hs-form-full">
+
+                                <label for="address">
+                                    Address
+                                </label>
+
+                                <InputTextArea id="address"
+                                               class="form-control"
+                                               @bind-Value="patientForm.Address"
+                                               disabled="@saving" />
+
+                                <ValidationMessage
+                                    For="@(() => patientForm.Address)" />
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="hs-modal-footer">
+
+                            <button type="button"
+                                    class="btn btn-secondary"
+                                    @onclick="CancelForm"
+                                    disabled="@saving">
+
+                                Cancel
+
+                            </button>
+
+
+                            <button type="submit"
+                                    class="btn btn-primary"
+                                    disabled="@saving">
+
+                                @if (saving)
+                                {
+                                    <span class="hs-button-spinner"></span>
+                                    <span>Saving...</span>
+                                }
+                                else
+                                {
+                                    <span class="bi bi-check-lg"></span>
+
+                                    <span>
+                                        @(editingPatientId.HasValue
+                                            ? "Update Patient"
+                                            : "Save Patient")
+                                    </span>
+                                }
+
+                            </button>
+
+                        </div>
+
+                    </EditForm>
+
+                </div>
+
+            </div>
+
+        </div>
+    }
+}
+
+
+@code {
+
+    private List<PatientResponse> patients = new();
+
+    private PatientCreateRequest patientForm = new();
+
+    private int? editingPatientId;
+
+    private bool loading = true;
+
+    private bool saving;
+
+    private bool showForm;
+
+    private string errorMessage = string.Empty;
+
+    private string formErrorMessage = string.Empty;
+
+    private string successMessage = string.Empty;
+
+
+    private bool CanAccess =>
+        AuthService.IsAuthenticated
+        && (
+            RoleHelper.IsAdmin(
+                AuthService.CurrentUser?.Role)
+
+            || RoleHelper.IsReceptionist(
+                AuthService.CurrentUser?.Role)
+
+            || RoleHelper.IsPractitioner(
+                AuthService.CurrentUser?.Role)
+
+            || RoleHelper.IsPharmacist(
+                AuthService.CurrentUser?.Role)
+        );
+
+
+    private bool CanManagePatients =>
+        AuthService.IsAuthenticated
+        && (
+            RoleHelper.IsAdmin(
+                AuthService.CurrentUser?.Role)
+
+            || RoleHelper.IsReceptionist(
+                AuthService.CurrentUser?.Role)
+        );
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        await AuthService.RestoreSessionAsync();
+
+        if (!AuthService.IsAuthenticated)
+        {
+            loading = false;
+            return;
+        }
+
+        if (!CanAccess)
+        {
+            loading = false;
+            return;
+        }
+
+        await LoadPatients();
+    }
+
+
+    private async Task LoadPatients()
+    {
+     	if (!CanAccess)
+    	{
+        	return;
+    	}
+
+    	loading = true;
+
+    	errorMessage = string.Empty;
+
+        try
+        {
+            patients =
+                (await PatientApiService.GetAllAsync())
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            errorMessage =
+                $"Unable to load patients. {ex.Message}";
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+
+    private void ShowCreateForm()
+    {
+        if (!CanManagePatients || saving)
+        {
+            return;
+        }
+
+        editingPatientId = null;
+
+        patientForm =
+            new PatientCreateRequest
+            {
+                DateOfBirth = DateTime.Today
+            };
+
+        formErrorMessage = string.Empty;
+
+        successMessage = string.Empty;
+
+        showForm = true;
+    }
+
+
+    private void EditPatient(
+        PatientResponse patient)
+    {
+        if (!CanManagePatients || saving)
+        {
+            return;
+        }
+
+        editingPatientId =
+            patient.PatientId;
+
+        patientForm =
+            new PatientCreateRequest
+            {
+                FirstName = patient.FirstName,
+                LastName = patient.LastName,
+                DateOfBirth = patient.DateOfBirth,
+                Gender = patient.Gender,
+                PhoneNumber = patient.PhoneNumber,
+                Email = patient.Email,
+                Address = patient.Address
+            };
+
+        formErrorMessage = string.Empty;
+
+        successMessage = string.Empty;
+
+        showForm = true;
+    }
+
+
+    private async Task SavePatient()
+    {
+        if (!CanManagePatients || saving)
+        {
+            return;
+        }
+
+        saving = true;
+
+        formErrorMessage = string.Empty;
+
+        successMessage = string.Empty;
+
+        try
+        {
+            if (editingPatientId.HasValue)
+            {
+                var updateRequest =
+                    new PatientUpdateRequest
+                    {
+                        FirstName = patientForm.FirstName,
+                        LastName = patientForm.LastName,
+                        DateOfBirth = patientForm.DateOfBirth,
+                        Gender = patientForm.Gender,
+                        PhoneNumber = patientForm.PhoneNumber,
+                        Email = patientForm.Email,
+                        Address = patientForm.Address
+                    };
+
+                await PatientApiService.UpdateAsync(
+                    editingPatientId.Value,
+                    updateRequest);
+
+                successMessage =
+                    "Patient updated successfully.";
+            }
+            else
+            {
+                await PatientApiService.CreateAsync(
+                    patientForm);
+
+                successMessage =
+                    "Patient registered successfully.";
+            }
+
+            showForm = false;
+
+            editingPatientId = null;
+
+            await LoadPatients();
+        }
+        catch (Exception ex)
+        {
+            formErrorMessage =
+                $"Unable to save patient: {ex.Message}";
+        }
+        finally
+        {
+            saving = false;
+        }
+    }
+
+
+    private void CancelForm()
+    {
+        if (saving)
+        {
+            return;
+        }
+
+        showForm = false;
+
+        editingPatientId = null;
+
+        formErrorMessage = string.Empty;
+    }
+}

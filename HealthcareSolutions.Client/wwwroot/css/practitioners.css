@@ -1,0 +1,30 @@
+.practitioner-form-card {
+    margin-bottom: 25px;
+}
+
+.availability-field {
+    margin-top: 20px;
+}
+
+    .availability-field label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 600;
+    }
+
+.status-available {
+    display: inline-block;
+    padding: 5px 10px;
+    border-radius: 15px;
+    border: 1px solid #b7dfb9;
+    background: #edf7ed;
+}
+
+.status-unavailable {
+    display: inline-block;
+    padding: 5px 10px;
+    border-radius: 15px;
+    border: 1px solid #e0b4b4;
+    background: #fceeee;
+}

@@ -1,0 +1,20 @@
+.visit-notes-page {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.visit-notes-page .card {
+    border-radius: 10px;
+}
+
+.visit-notes-page textarea {
+    resize: vertical;
+}
+
+.visit-notes-page table {
+    vertical-align: middle;
+}
+
+.visit-notes-page .btn {
+    min-width: 80px;
+}

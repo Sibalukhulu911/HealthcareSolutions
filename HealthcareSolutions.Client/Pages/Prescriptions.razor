@@ -1,0 +1,1382 @@
+@page "/prescriptions"
+
+@using HealthcareSolutions.Client.Models
+@using HealthcareSolutions.Client.Services
+
+@inject AuthService AuthService
+@inject PatientApiService PatientApiService
+@inject PractitionerApiService PractitionerApiService
+@inject AppointmentApiService AppointmentApiService
+@inject MedicalRecordApiService MedicalRecordApiService
+@inject MedicationApiService MedicationApiService
+@inject PrescriptionApiService PrescriptionApiService
+
+<PageTitle>Prescriptions</PageTitle>
+
+@if (!AuthService.IsAuthenticated)
+{
+    <div class="hs-page">
+        <div class="hs-access-card hs-glass-card">
+            <div class="hs-access-icon">!</div>
+
+            <div>
+                <h2>Login Required</h2>
+                <p>
+                    Please log in to access prescriptions.
+                </p>
+            </div>
+        </div>
+    </div>
+}
+else if (!CanView)
+{
+    <div class="hs-page">
+        <div class="hs-access-card hs-glass-card">
+            <div class="hs-access-icon hs-access-danger">!</div>
+
+            <div>
+                <h2>Access Denied</h2>
+                <p>
+                    You do not have permission to access prescriptions.
+                </p>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    <div class="hs-page hs-prescriptions-page">
+
+        <div class="hs-page-header">
+
+            <div>
+                <div class="hs-eyebrow">
+                    PHARMACY &amp; CLINICAL CARE
+                </div>
+
+                <h1>Prescriptions</h1>
+
+                <p>
+                    Create, review and manage patient prescriptions.
+                </p>
+            </div>
+
+            <div class="hs-page-header-badge">
+                <span class="hs-status-dot"></span>
+                Prescription Management
+            </div>
+
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="alert alert-danger hs-alert">
+                <strong>Something went wrong</strong>
+                <span>@errorMessage</span>
+            </div>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(successMessage))
+        {
+            <div class="alert alert-success hs-alert">
+                <strong>Success</strong>
+                <span>@successMessage</span>
+            </div>
+        }
+
+        @if (loadingPrescriptions)
+        {
+            <div class="hs-glass-card hs-loading">
+                <div class="hs-spinner"></div>
+                <span>Loading prescription data...</span>
+            </div>
+        }
+        else
+        {
+            @if (CanCreate)
+            {
+                <div class="hs-glass-card hs-prescription-form-card">
+
+                    <div class="hs-section-header">
+
+                        <div class="hs-section-title-group">
+
+                            <div class="hs-section-icon">
+                                +
+                            </div>
+
+                            <div>
+                                <h2>Create Prescription</h2>
+
+                                <p>
+                                    Create a prescription for a patient
+                                    using an available medication.
+                                </p>
+                            </div>
+
+                        </div>
+
+                        <span class="badge badge-info">
+                            Practitioner
+                        </span>
+
+                    </div>
+
+                    @if (patients.Count == 0)
+                    {
+                        <div class="alert alert-info">
+                            No patients are available.
+                            A patient must be registered before a
+                            prescription can be created.
+                        </div>
+                    }
+                    else if (medicalRecord == null)
+                    {
+                        <div class="alert alert-info">
+                            The selected patient does not have a medical
+                            record. A medical record must exist before a
+                            prescription can be created.
+                        </div>
+                    }
+                    else if (medications.Count == 0)
+                    {
+                        <div class="alert alert-info">
+                            No medications are available in the medication
+                            catalogue.
+                        </div>
+                    }
+                    else if (practitioners.Count == 0)
+                    {
+                        <div class="alert alert-info">
+                            No practitioners are available.
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="hs-form-grid hs-prescription-form-grid">
+
+                            <div class="form-group">
+
+                                <label>
+                                    Patient
+                                </label>
+
+                                <select class="form-select"
+                                        @bind="selectedPatientId"
+                                        @bind:disabled="@saving">
+
+                                    <option value="0">
+                                        Select a patient
+                                    </option>
+
+                                    @foreach (var patient in patients)
+                                    {
+                                        <option value="@patient.PatientId">
+                                            @patient.FirstName
+                                            @patient.LastName
+                                        </option>
+                                    }
+
+                                </select>
+
+                            </div>
+
+                            <div class="form-group">
+
+                                <label>
+                                    Medical Record
+                                </label>
+
+                                <input class="form-control"
+                                       value="@(medicalRecord == null
+                                           ? "No medical record"
+                                           : $"Medical Record #{medicalRecord.MedicalRecordId}")"
+                                       disabled />
+
+                            </div>
+
+                            <div class="form-group">
+
+                                <label>
+                                    Practitioner
+                                </label>
+
+                                <select class="form-select"
+                                        @bind="selectedPractitionerId"
+                                        @bind:disabled="@saving">
+
+                                    <option value="0">
+                                        Select a practitioner
+                                    </option>
+
+                                    @foreach (var practitioner in practitioners)
+                                    {
+                                        <option value="@practitioner.PractitionerId">
+                                            @practitioner.FirstName
+                                            @practitioner.LastName
+                                        </option>
+                                    }
+
+                                </select>
+
+                            </div>
+
+                            <div class="form-group">
+
+                                <label>
+                                    Appointment
+                                </label>
+
+                                <select class="form-select"
+                                        @bind="selectedAppointmentId"
+                                        @bind:disabled="@saving">
+
+                                    <option value="0">
+                                        Select an appointment
+                                    </option>
+
+                                    @foreach (var appointment in patientAppointments)
+                                    {
+                                        <option value="@appointment.AppointmentId">
+                                            Appointment #@appointment.AppointmentId
+                                            -
+                                            @(appointment.ScheduledAt.ToString(
+                                                "dd MMM yyyy HH:mm"))
+                                        </option>
+                                    }
+
+                                </select>
+
+                            </div>
+
+                            <div class="form-group">
+
+                                <label>
+                                    Medication
+                                </label>
+
+                                <select class="form-select"
+                                        @bind="selectedMedicationId"
+                                        @bind:disabled="@saving">
+
+                                    <option value="0">
+                                        Select a medication
+                                    </option>
+
+                                    @foreach (var medication in medications)
+                                    {
+                                        <option value="@medication.MedicationId">
+                                            @medication.MedicationName
+                                            -
+                                            @medication.Dosage
+                                        </option>
+                                    }
+
+                                </select>
+
+                            </div>
+
+                            <div class="form-group">
+
+                                <label>
+                                    Dosage
+                                </label>
+
+                                <input class="form-control"
+                                       @bind="dosage"
+                                       disabled="@saving"
+                                       placeholder="e.g. 500 mg" />
+
+                            </div>
+
+                            <div class="form-group">
+
+                                <label>
+                                    Frequency
+                                </label>
+
+                                <input class="form-control"
+                                       @bind="frequency"
+                                       disabled="@saving"
+                                       placeholder="e.g. Twice daily" />
+
+                            </div>
+
+                            <div class="form-group">
+
+                                <label>
+                                    Duration
+                                </label>
+
+                                <input class="form-control"
+                                       @bind="duration"
+                                       disabled="@saving"
+                                       placeholder="e.g. 7 days" />
+
+                            </div>
+
+                            <div class="form-group hs-form-full">
+
+                                <label>
+                                    Instructions
+                                </label>
+
+                                <textarea class="form-control"
+                                          rows="4"
+                                          @bind="instructions"
+                                          disabled="@saving"
+                                          placeholder="Additional instructions for the patient"></textarea>
+
+                            </div>
+
+                        </div>
+
+                        @if (!string.IsNullOrWhiteSpace(createErrorMessage))
+                        {
+                            <div class="alert alert-danger hs-alert">
+                                <strong>Unable to create prescription</strong>
+                                <span>@createErrorMessage</span>
+                            </div>
+                        }
+
+                        <div class="hs-form-footer">
+
+                            <div class="hs-form-hint">
+                                Complete all required fields before creating
+                                the prescription.
+                            </div>
+
+                            <button class="btn btn-primary"
+                                    @onclick="CreatePrescription"
+                                    disabled="@(saving
+                                        || selectedPatientId == 0
+                                        || medicalRecord == null
+                                        || selectedPractitionerId == 0
+                                        || selectedAppointmentId == 0
+                                        || selectedMedicationId == 0
+                                        || string.IsNullOrWhiteSpace(dosage)
+                                        || string.IsNullOrWhiteSpace(frequency)
+                                        || string.IsNullOrWhiteSpace(duration))">
+
+                                @if (saving)
+                                {
+                                    <span class="hs-button-spinner"></span>
+                                    <span>Creating...</span>
+                                }
+                                else
+                                {
+                                    <span>Create Prescription</span>
+                                }
+
+                            </button>
+
+                        </div>
+                    }
+
+                </div>
+            }
+
+            <div class="hs-glass-card hs-prescription-list-card">
+
+                <div class="hs-section-header">
+
+                    <div class="hs-section-title-group">
+
+                        <div class="hs-section-icon">
+                            Rx
+                        </div>
+
+                        <div>
+                            <h2>Patient Prescriptions</h2>
+
+                            <p>
+                                View prescription history and dispensing
+                                status.
+                            </p>
+                        </div>
+
+                    </div>
+
+                    @if (viewPatientId != 0)
+                    {
+                        <button class="btn btn-secondary"
+                                @onclick="ReloadPrescriptionData"
+                                disabled="@loadingPrescriptions">
+
+                            @if (loadingPrescriptions)
+                            {
+                                <span class="hs-button-spinner hs-button-spinner-dark"></span>
+                                <span>Refreshing...</span>
+                            }
+                            else
+                            {
+                                <span>Refresh</span>
+                            }
+
+                        </button>
+                    }
+
+                </div>
+
+                @if (patients.Count == 0)
+                {
+                    <div class="hs-empty-state">
+
+                        <div class="hs-empty-icon">
+                            Rx
+                        </div>
+
+                        <h3>No patients available</h3>
+
+                        <p>
+                            There are currently no patients available
+                            to view prescriptions for.
+                        </p>
+
+                    </div>
+                }
+                else
+                {
+                    <div class="hs-prescription-filter">
+
+                        <div class="form-group">
+
+                            <label>
+                                Select Patient
+                            </label>
+
+                           <select class="form-select"
+                                @bind="viewPatientId"
+                                @bind:after="OnViewPatientChanged"
+                                @bind:disabled="@loadingPrescriptions">
+
+                                <option value="0">
+                                    Select a patient
+                                </option>
+
+                                @foreach (var patient in patients)
+                                {
+                                    <option value="@patient.PatientId">
+                                        @patient.FirstName
+                                        @patient.LastName
+                                    </option>
+                                }
+
+                            </select>
+
+                        </div>
+
+                        @if (viewPatientId != 0)
+                        {
+                            <div class="hs-selected-patient">
+
+                                <span class="hs-selected-patient-label">
+                                    Viewing
+                                </span>
+
+                                <strong>
+                                    @GetPatientName(viewPatientId)
+                                </strong>
+
+                            </div>
+                        }
+
+                    </div>
+
+                    @if (loadingPrescriptions)
+                    {
+                        <div class="hs-loading hs-loading-small">
+                            <div class="hs-spinner"></div>
+                            <span>Loading prescriptions...</span>
+                        </div>
+                    }
+                    else if (viewPatientId == 0)
+                    {
+                        <div class="hs-empty-state">
+
+                            <div class="hs-empty-icon">
+                                Rx
+                            </div>
+
+                            <h3>Select a patient</h3>
+
+                            <p>
+                                Select a patient above to view their
+                                prescriptions.
+                            </p>
+
+                        </div>
+                    }
+                    else if (selectedPrescriptions.Count == 0)
+                    {
+                        <div class="hs-empty-state">
+
+                            <div class="hs-empty-icon">
+                                Rx
+                            </div>
+
+                            <h3>No prescriptions found</h3>
+
+                            <p>
+                                This patient does not have any prescriptions.
+                            </p>
+
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="hs-prescription-summary">
+
+                            <div class="hs-mini-stat">
+                                <span class="hs-mini-stat-value">
+                                    @selectedPrescriptions.Count
+                                </span>
+
+                                <span class="hs-mini-stat-label">
+                                    Total prescriptions
+                                </span>
+                            </div>
+
+                            <div class="hs-mini-stat">
+                                <span class="hs-mini-stat-value">
+                                    @selectedPrescriptions.Count(
+                                        p => p.Status == "Pending")
+                                </span>
+
+                                <span class="hs-mini-stat-label">
+                                    Pending
+                                </span>
+                            </div>
+
+                            <div class="hs-mini-stat">
+                                <span class="hs-mini-stat-value">
+                                    @selectedPrescriptions.Count(
+                                        p => p.Status == "Dispensed")
+                                </span>
+
+                                <span class="hs-mini-stat-label">
+                                    Dispensed
+                                </span>
+                            </div>
+
+                            <div class="hs-mini-stat">
+                                <span class="hs-mini-stat-value">
+                                    @selectedPrescriptions.Count(
+                                        p => p.Status == "Unavailable")
+                                </span>
+
+                                <span class="hs-mini-stat-label">
+                                    Unavailable
+                                </span>
+                            </div>
+
+                        </div>
+
+                        <div class="table-card hs-prescription-table-card">
+
+                            <div class="table-responsive">
+
+                                <table class="table hs-data-table">
+
+                                    <thead>
+
+                                        <tr>
+                                            <th>Medication</th>
+                                            <th>Dosage</th>
+                                            <th>Frequency</th>
+                                            <th>Duration</th>
+                                            <th>Instructions</th>
+                                            <th>Status</th>
+                                            <th>Created</th>
+
+                                            @if (CanUpdateStatus)
+                                            {
+                                                <th>Actions</th>
+                                            }
+                                        </tr>
+
+                                    </thead>
+
+                                    <tbody>
+
+                                        @foreach (var prescription in selectedPrescriptions)
+                                        {
+                                            <tr>
+
+                                                <td>
+                                                    <div class="hs-medication-cell">
+
+                                                        <div class="hs-medication-icon">
+                                                            Rx
+                                                        </div>
+
+                                                        <div>
+                                                            <strong>
+                                                                @GetMedicationName(
+                                                                    prescription.MedicationId)
+                                                            </strong>
+
+                                                            <span class="hs-muted">
+                                                                Medication #
+                                                                @prescription.MedicationId
+                                                            </span>
+                                                        </div>
+
+                                                    </div>
+                                                </td>
+
+                                                <td>
+                                                    <span class="hs-data-value">
+                                                        @prescription.Dosage
+                                                    </span>
+                                                </td>
+
+                                                <td>
+                                                    @prescription.Frequency
+                                                </td>
+
+                                                <td>
+                                                    @prescription.Duration
+                                                </td>
+
+                                                <td>
+                                                    <span class="hs-instructions-cell">
+                                                        @(string.IsNullOrWhiteSpace(
+                                                            prescription.Instructions)
+                                                            ? " "
+                                                            : prescription.Instructions)
+                                                    </span>
+                                                </td>
+
+                                                <td>
+                                                    <span class="@GetPrescriptionStatusClass(
+                                                        prescription.Status)">
+                                                        @prescription.Status
+                                                    </span>
+                                                </td>
+
+                                                <td>
+                                                    <div class="hs-datetime-cell">
+
+                                                        <strong>
+                                                            @(prescription.CreatedAt
+                                                                .ToString(
+                                                                    "dd/MM/yyyy"))
+                                                        </strong>
+
+                                                        <span class="hs-muted">
+                                                            @(prescription.CreatedAt
+                                                                .ToString(
+                                                                    "HH:mm"))
+                                                        </span>
+
+                                                    </div>
+                                                </td>
+
+                                                @if (CanUpdateStatus)
+                                                {
+                                                    <td>
+
+                                                        <div class="hs-table-actions">
+
+                                                            @if (prescription.Status == "Pending")
+                                                            {
+                                                                <button class="btn btn-success btn-small"
+                                                                        @onclick="() => MarkAsDispensed(
+                                                                            prescription.PrescriptionId)"
+                                                                        disabled="@updatingStatus">
+
+                                                                    @(updatingStatus
+                                                                        ? "Updating..."
+                                                                        : "Dispense")
+
+                                                                </button>
+
+                                                                <button class="btn btn-danger btn-small"
+                                                                        @onclick="() => MarkAsUnavailable(
+                                                                            prescription.PrescriptionId)"
+                                                                        disabled="@updatingStatus">
+
+                                                                    @(updatingStatus
+                                                                        ? "Updating..."
+                                                                        : "Unavailable")
+
+                                                                </button>
+                                                            }
+                                                            else
+                                                            {
+                                                                <span class="hs-muted"> </span>
+                                                            }
+
+                                                        </div>
+
+                                                    </td>
+                                                }
+
+                                            </tr>
+                                        }
+
+                                    </tbody>
+
+                                </table>
+
+                            </div>
+
+                        </div>
+                    }
+
+                }
+
+            </div>
+
+        }
+
+    </div>
+}
+
+@code {
+
+    private bool IsAdmin =>
+        AuthService.CurrentUser != null
+        && RoleHelper.IsAdmin(
+            AuthService.CurrentUser.Role);
+
+    private bool IsPractitioner =>
+        AuthService.CurrentUser != null
+        && RoleHelper.IsPractitioner(
+            AuthService.CurrentUser.Role);
+
+    private bool IsPharmacist =>
+        AuthService.CurrentUser != null
+        && RoleHelper.IsPharmacist(
+            AuthService.CurrentUser.Role);
+
+    private bool CanView =>
+        AuthService.IsAuthenticated
+        && (
+            IsAdmin
+            || IsPractitioner
+            || IsPharmacist
+        );
+
+    private bool CanCreate =>
+        AuthService.IsAuthenticated
+        && IsPractitioner;
+
+    private bool CanUpdateStatus =>
+        AuthService.IsAuthenticated
+        && IsPharmacist;
+
+
+    private List<PatientResponse> patients = new();
+
+    private List<PractitionerResponse> practitioners = new();
+
+    private List<AppointmentResponse> appointments = new();
+
+    private List<AppointmentResponse> patientAppointments = new();
+
+    private List<MedicationResponse> medications = new();
+
+    private List<PrescriptionResponse> selectedPrescriptions = new();
+
+    private MedicalRecordResponse? medicalRecord;
+
+
+    private int selectedPatientId;
+
+    private int selectedPractitionerId;
+
+    private int selectedAppointmentId;
+
+    private int selectedMedicationId;
+
+    private int viewPatientId;
+
+
+    private string dosage = string.Empty;
+
+    private string frequency = string.Empty;
+
+    private string duration = string.Empty;
+
+    private string instructions = string.Empty;
+
+
+    private bool loadingPrescriptions;
+
+    private bool saving;
+
+    private bool updatingStatus;
+
+
+    private string errorMessage = string.Empty;
+
+    private string createErrorMessage = string.Empty;
+
+    private string successMessage = string.Empty;
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        await AuthService.RestoreSessionAsync();
+
+        if (!AuthService.IsAuthenticated)
+        {
+            return;
+        }
+
+        if (!CanView)
+        {
+            return;
+        }
+
+        await LoadPrescriptionData();
+    }
+
+
+    private async Task LoadPrescriptionData()
+    {
+        if (!CanView)
+        {
+            return;
+        }
+
+        loadingPrescriptions = true;
+        errorMessage = string.Empty;
+        createErrorMessage = string.Empty;
+
+        try
+        {
+            patients =
+                (await PatientApiService.GetAllAsync())
+                .ToList();
+
+            if (IsPharmacist || IsAdmin)
+            {
+                practitioners = new List<PractitionerResponse>();
+                appointments = new List<AppointmentResponse>();
+                medications = new List<MedicationResponse>();
+
+                if (patients.Any())
+                {
+                    if (viewPatientId == 0)
+                    {
+                        viewPatientId =
+                            patients.First().PatientId;
+                    }
+
+                    selectedPatientId = viewPatientId;
+
+                    await LoadPatientPrescriptionsCore();
+                }
+
+                return;
+            }
+
+            if (IsPractitioner)
+            {
+                practitioners =
+                    (await PractitionerApiService.GetAllAsync())
+                    .ToList();
+
+                appointments =
+                    (await AppointmentApiService.GetAllAsync())
+                    .ToList();
+
+                medications =
+                    (await MedicationApiService.GetAllAsync())
+                    .Where(m => m.IsAvailable)
+                    .ToList();
+
+                if (patients.Any() && selectedPatientId == 0)
+                {
+                    selectedPatientId =
+                        patients.First().PatientId;
+                }
+
+                if (patients.Any() && viewPatientId == 0)
+                {
+                    viewPatientId =
+                        patients.First().PatientId;
+                }
+
+                if (practitioners.Any() &&
+                    selectedPractitionerId == 0)
+                {
+                    selectedPractitionerId =
+                        practitioners.First().PractitionerId;
+                }
+
+                await LoadPatientData();
+                await LoadPatientPrescriptionsCore();
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage =
+                $"Unable to load prescription data: {ex.Message}";
+        }
+        finally
+        {
+            loadingPrescriptions = false;
+        }
+    }
+
+
+    private async Task LoadPatientData()
+    {
+        if (!CanView)
+        {
+            return;
+        }
+
+        medicalRecord = null;
+
+        patientAppointments.Clear();
+
+        selectedAppointmentId = 0;
+
+        if (selectedPatientId == 0)
+        {
+            return;
+        }
+
+        try
+        {
+            medicalRecord =
+                await MedicalRecordApiService
+                    .GetByPatientIdAsync(
+                        selectedPatientId);
+
+            patientAppointments =
+                appointments
+                    .Where(a =>
+                        a.PatientId == selectedPatientId)
+                    .ToList();
+
+            if (patientAppointments.Count > 0)
+            {
+                selectedAppointmentId =
+                    patientAppointments[0].AppointmentId;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage =
+                $"Unable to load patient data: {ex.Message}";
+        }
+    }
+
+
+    private async Task LoadPatientPrescriptions()
+    {
+        if (!CanView)
+        {
+            return;
+        }
+
+        await LoadPatientPrescriptionsCore();
+    }
+
+
+    private async Task LoadPatientPrescriptionsCore()
+    {
+        selectedPrescriptions.Clear();
+
+        if (viewPatientId == 0)
+        {
+            return;
+        }
+
+        errorMessage = string.Empty;
+
+        try
+        {
+            var record =
+                await MedicalRecordApiService
+                    .GetByPatientIdAsync(
+                        viewPatientId);
+
+            if (record == null)
+            {
+                return;
+            }
+
+            var prescriptions =
+                await PrescriptionApiService
+                    .GetByMedicalRecordIdAsync(
+                        record.MedicalRecordId);
+
+            selectedPrescriptions =
+                prescriptions.ToList();
+        }
+        catch (Exception ex)
+        {
+            errorMessage =
+                $"Unable to load prescriptions: {ex.Message}";
+        }
+    }
+
+    private async Task OnViewPatientChanged()
+    {
+    	if (!CanView || loadingPrescriptions)
+    	{
+        	return;
+    	}
+
+    	successMessage = string.Empty;
+    	errorMessage = string.Empty;
+
+    	await LoadPatientPrescriptions();
+    }
+
+    private async Task ReloadPrescriptionData()
+    {
+        if (!CanView || loadingPrescriptions)
+        {
+            return;
+        }
+
+        successMessage = string.Empty;
+
+        loadingPrescriptions = true;
+
+        try
+        {
+            await LoadPatientPrescriptionsCore();
+        }
+        finally
+        {
+            loadingPrescriptions = false;
+        }
+    }
+
+
+    private async Task CreatePrescription()
+    {
+        if (!CanCreate || saving)
+        {
+            return;
+        }
+
+        createErrorMessage = string.Empty;
+        errorMessage = string.Empty;
+        successMessage = string.Empty;
+
+
+        if (selectedPatientId == 0)
+        {
+            createErrorMessage =
+                "Please select a patient.";
+
+            return;
+        }
+
+
+        if (medicalRecord == null)
+        {
+            createErrorMessage =
+                "The selected patient does not have a medical record.";
+
+            return;
+        }
+
+
+        if (selectedPractitionerId == 0)
+        {
+            createErrorMessage =
+                "Please select a practitioner.";
+
+            return;
+        }
+
+
+        if (selectedAppointmentId == 0)
+        {
+            createErrorMessage =
+                "Please select an appointment.";
+
+            return;
+        }
+
+
+        if (selectedMedicationId == 0)
+        {
+            createErrorMessage =
+                "Please select a medication.";
+
+            return;
+        }
+
+
+        if (string.IsNullOrWhiteSpace(dosage))
+        {
+            createErrorMessage =
+                "Please enter the dosage.";
+
+            return;
+        }
+
+
+        if (string.IsNullOrWhiteSpace(frequency))
+        {
+            createErrorMessage =
+                "Please enter the frequency.";
+
+            return;
+        }
+
+
+        if (string.IsNullOrWhiteSpace(duration))
+        {
+            createErrorMessage =
+                "Please enter the duration.";
+
+            return;
+        }
+
+
+        saving = true;
+
+        try
+        {
+            var request =
+                new PrescriptionCreateRequest
+                {
+                    MedicalRecordId =
+                        medicalRecord.MedicalRecordId,
+
+                    PractitionerId =
+                        selectedPractitionerId,
+
+                    AppointmentId =
+                        selectedAppointmentId,
+
+                    MedicationId =
+                        selectedMedicationId,
+
+                    Dosage =
+                        dosage.Trim(),
+
+                    Frequency =
+                        frequency.Trim(),
+
+                    Duration =
+                        duration.Trim(),
+
+                    Instructions =
+                        string.IsNullOrWhiteSpace(instructions)
+                            ? null
+                            : instructions.Trim()
+                };
+
+
+            await PrescriptionApiService
+                .CreateAsync(request);
+
+
+            successMessage =
+                "Prescription created successfully.";
+
+
+            dosage = string.Empty;
+            frequency = string.Empty;
+            duration = string.Empty;
+            instructions = string.Empty;
+
+
+            viewPatientId =
+                selectedPatientId;
+
+
+            // Explicitly reload the patient's prescriptions
+            // after the API confirms creation.
+            await RefreshPatientPrescriptions();
+
+
+            // Make sure the newly loaded list is rendered
+            // immediately by the Blazor component.
+            await InvokeAsync(
+                StateHasChanged);
+        }
+        catch (Exception ex)
+        {
+            createErrorMessage =
+                $"Unable to create prescription: {ex.Message}";
+        }
+        finally
+        {
+            saving = false;
+        }
+    }
+
+
+    private async Task MarkAsDispensed(
+        int prescriptionId)
+    {
+        if (!CanUpdateStatus)
+        {
+            return;
+        }
+
+        await UpdateStatus(
+            prescriptionId,
+            "Dispensed");
+    }
+
+
+    private async Task MarkAsUnavailable(
+        int prescriptionId)
+    {
+        if (!CanUpdateStatus)
+        {
+            return;
+        }
+
+        await UpdateStatus(
+            prescriptionId,
+            "Unavailable");
+    }
+
+
+    private async Task UpdateStatus(
+        int prescriptionId,
+        string status)
+    {
+        if (!CanUpdateStatus
+            || updatingStatus
+            || prescriptionId <= 0)
+        {
+            return;
+        }
+
+        updatingStatus = true;
+
+        errorMessage = string.Empty;
+        successMessage = string.Empty;
+
+        try
+        {
+            var request =
+                new PrescriptionUpdateStatusRequest
+                {
+                    Status = status
+                };
+
+
+            await PrescriptionApiService
+                .UpdateStatusAsync(
+                    prescriptionId,
+                    request);
+
+
+            successMessage =
+                status == "Dispensed"
+                    ? "Prescription marked as dispensed."
+                    : "Prescription marked as unavailable.";
+
+
+            await RefreshPatientPrescriptions();
+
+            await InvokeAsync(
+                StateHasChanged);
+        }
+        catch (Exception ex)
+        {
+            errorMessage =
+                $"Unable to update prescription status: {ex.Message}";
+        }
+        finally
+        {
+            updatingStatus = false;
+        }
+    }
+
+
+    private async Task RefreshPatientPrescriptions()
+    {
+        if (!CanView)
+        {
+            return;
+        }
+
+        selectedPrescriptions.Clear();
+
+        if (viewPatientId == 0)
+        {
+            return;
+        }
+
+        try
+        {
+            var record =
+                await MedicalRecordApiService
+                    .GetByPatientIdAsync(
+                        viewPatientId);
+
+            if (record == null)
+            {
+                return;
+            }
+
+            var prescriptions =
+                await PrescriptionApiService
+                    .GetByMedicalRecordIdAsync(
+                        record.MedicalRecordId);
+
+            selectedPrescriptions =
+                prescriptions.ToList();
+        }
+        catch (Exception ex)
+        {
+            errorMessage =
+                $"Unable to refresh prescriptions: {ex.Message}";
+        }
+    }
+
+
+    private string GetMedicationName(
+        int medicationId)
+    {
+        var medication =
+            medications.FirstOrDefault(
+                m => m.MedicationId == medicationId);
+
+        return medication?.MedicationName
+            ?? $"Medication #{medicationId}";
+    }
+
+
+    private string GetPatientName(
+        int patientId)
+    {
+        var patient =
+            patients.FirstOrDefault(
+                p => p.PatientId == patientId);
+
+        return patient == null
+            ? $"Patient #{patientId}"
+            : $"{patient.FirstName} {patient.LastName}";
+    }
+
+
+    private string GetPrescriptionStatusClass(
+        string status)
+    {
+        return status switch
+        {
+            "Pending" =>
+                "hs-data-badge badge-warning",
+
+            "Dispensed" =>
+                "hs-data-badge badge-success",
+
+            "Unavailable" =>
+                "hs-data-badge badge-danger",
+
+            _ =>
+                "hs-data-badge badge-neutral"
+        };
+    }
+}

@@ -1,0 +1,20 @@
+.medications-page {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.medications-page .card {
+    border-radius: 10px;
+}
+
+.medications-page textarea {
+    resize: vertical;
+}
+
+.medications-page table {
+    vertical-align: middle;
+}
+
+.medications-page .btn {
+    min-width: 80px;
+}

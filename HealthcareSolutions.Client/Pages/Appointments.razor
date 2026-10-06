@@ -1,0 +1,1295 @@
+﻿@page "/appointments"
+
+@using HealthcareSolutions.Client.Models
+@using HealthcareSolutions.Client.Shared
+
+@inject AuthService AuthService
+@inject AppointmentApiService AppointmentApiService
+@inject PatientApiService PatientApiService
+@inject PractitionerApiService PractitionerApiService
+@inject NavigationManager Navigation
+
+<PageTitle>Appointments</PageTitle>
+
+@if (!AuthService.IsAuthenticated)
+{
+    <div class="hs-access-denied hs-glass-card">
+
+        <div class="hs-empty-icon">
+            🔒
+        </div>
+
+        <h2>Access denied</h2>
+
+        <p>
+            Please log in to access appointments.
+        </p>
+
+    </div>
+}
+else if (!CanAccess)
+{
+    <div class="hs-access-denied hs-glass-card">
+
+        <div class="hs-empty-icon">
+            🔒
+        </div>
+
+        <h2>Access denied</h2>
+
+        <p>
+            You do not have permission to access appointments.
+        </p>
+
+    </div>
+}
+else
+{
+    <div class="hs-page">
+
+        <div class="hs-page-header">
+
+            <div>
+
+                <div class="hs-eyebrow">
+                    Scheduling &amp; coordination
+                </div>
+
+                <h1>Appointments</h1>
+
+                <p>
+                    @(CanManageAppointments
+                        ? "Manage patient appointments and practitioner schedules."
+                        : "View patient appointments and schedules.")
+                </p>
+
+            </div>
+
+            @if (CanManageAppointments)
+            {
+                <button class="btn btn-primary"
+                        @onclick="ShowCreateForm"
+                        disabled="@saving">
+
+                    + Book Appointment
+
+                </button>
+            }
+
+        </div>
+
+
+        @if (!string.IsNullOrWhiteSpace(successMessage))
+        {
+            <div class="alert alert-success hs-page-alert">
+                @successMessage
+            </div>
+        }
+
+
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="alert alert-danger hs-page-alert">
+
+                <div>
+                    @errorMessage
+                </div>
+
+                <button class="btn btn-secondary btn-small"
+                        @onclick="LoadData"
+                        disabled="@loading">
+
+                    Try Again
+
+                </button>
+
+            </div>
+        }
+
+
+        @if (loading)
+        {
+            <div class="hs-page-loading hs-glass-card">
+
+                <div class="hs-spinner"></div>
+
+                <p>
+                    Loading appointments...
+                </p>
+
+            </div>
+        }
+        else
+        {
+            <div class="hs-summary-row">
+
+                <div class="hs-summary-card hs-glass-card">
+
+                    <div class="hs-summary-icon">
+                        📅
+                    </div>
+
+                    <div>
+
+                        <div class="hs-summary-value">
+                            @appointments.Count
+                        </div>
+
+                        <div class="hs-summary-label">
+                            Total appointments
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="hs-summary-card hs-glass-card">
+
+                    <div class="hs-summary-icon">
+                        ✓
+                    </div>
+
+                    <div>
+
+                        <div class="hs-summary-value">
+                            @ScheduledCount
+                        </div>
+
+                        <div class="hs-summary-label">
+                            Scheduled
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="hs-summary-card hs-glass-card">
+
+                    <div class="hs-summary-icon">
+                        ✔
+                    </div>
+
+                    <div>
+
+                        <div class="hs-summary-value">
+                            @CompletedCount
+                        </div>
+
+                        <div class="hs-summary-label">
+                            Completed
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="hs-summary-card hs-glass-card">
+
+                    <div class="hs-summary-icon">
+                        ×
+                    </div>
+
+                    <div>
+
+                        <div class="hs-summary-value">
+                            @CancelledCount
+                        </div>
+
+                        <div class="hs-summary-label">
+                            Cancelled
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            @if (showForm && CanManageAppointments)
+            {
+                <div class="hs-modal-overlay">
+
+                    <div class="hs-modal hs-appointment-modal">
+
+                        <div class="hs-modal-header">
+
+                            <div>
+
+                                <div class="hs-eyebrow">
+                                    Appointment scheduling
+                                </div>
+
+                                <h2>
+                                    @(editingAppointmentId.HasValue
+                                        ? "Edit Appointment"
+                                        : "Book Appointment")
+                                </h2>
+
+                                <p>
+                                    Enter the appointment details below.
+                                </p>
+
+                            </div>
+
+                            <button type="button"
+                                    class="hs-modal-close"
+                                    @onclick="CancelForm"
+                                    disabled="@saving">
+
+                                ×
+
+                            </button>
+
+                        </div>
+
+
+                        <div class="hs-modal-body">
+
+                            @if (patients.Count == 0)
+                            {
+                                <div class="hs-empty-state">
+
+                                    <div class="hs-empty-icon">
+                                        👤
+                                    </div>
+
+                                    <h3>No Patients Available</h3>
+
+                                    <p>
+                                        Register a patient before booking
+                                        an appointment.
+                                    </p>
+
+                                </div>
+                            }
+                            else if (availablePractitioners.Count == 0)
+                            {
+                                <div class="hs-empty-state">
+
+                                    <div class="hs-empty-icon">
+                                        👨‍⚕️
+                                    </div>
+
+                                    <h3>No Practitioners Available</h3>
+
+                                    <p>
+                                        At least one practitioner must be
+                                        marked as available before an
+                                        appointment can be booked.
+                                    </p>
+
+                                </div>
+                            }
+                            else
+                            {
+                                <EditForm Model="appointmentForm"
+                                          OnValidSubmit="SaveAppointment">
+
+                                    <DataAnnotationsValidator />
+
+                                    <ValidationSummary />
+
+
+                                    @if (!string.IsNullOrWhiteSpace(formErrorMessage))
+                                    {
+                                        <div class="alert alert-danger">
+
+                                            @formErrorMessage
+
+                                        </div>
+                                    }
+
+
+                                    <div class="hs-form-grid">
+
+                                        <div class="form-group">
+
+                                            <label for="patient">
+                                                Patient
+                                            </label>
+
+                                            <InputSelect id="patient"
+                                                         class="form-control"
+                                                         @bind-Value="appointmentForm.PatientId"
+                                                         disabled="@saving">
+
+                                                <option value="0">
+                                                    Select a patient
+                                                </option>
+
+                                                @foreach (var patient in patients)
+                                                {
+                                                    <option value="@patient.PatientId">
+                                                        @patient.FirstName
+                                                        @patient.LastName
+                                                    </option>
+                                                }
+
+                                            </InputSelect>
+
+                                            <ValidationMessage
+                                                For="@(() => appointmentForm.PatientId)" />
+
+                                        </div>
+
+
+                                        <div class="form-group">
+
+                                            <label for="practitioner">
+                                                Practitioner
+                                            </label>
+
+                                            <InputSelect id="practitioner"
+                                                         class="form-control"
+                                                         @bind-Value="appointmentForm.PractitionerId"
+                                                         disabled="@saving">
+
+                                                <option value="0">
+                                                    Select a practitioner
+                                                </option>
+
+                                                @foreach (var practitioner in availablePractitioners)
+                                                {
+                                                    <option value="@practitioner.PractitionerId">
+                                                        @practitioner.FirstName
+                                                        @practitioner.LastName
+                                                        -
+                                                        @practitioner.Specialty
+                                                    </option>
+                                                }
+
+                                            </InputSelect>
+
+                                            <ValidationMessage
+                                                For="@(() => appointmentForm.PractitionerId)" />
+
+                                        </div>
+
+
+                                        <div class="form-group">
+
+                                            <label for="scheduledAt">
+                                                Date &amp; Time
+                                            </label>
+
+                                            <InputDate id="scheduledAt"
+                                                       class="form-control"
+                                                       @bind-Value="appointmentForm.ScheduledAt"
+                                                       Type="InputDateType.DateTimeLocal"
+                                                       disabled="@saving" />
+
+                                            <ValidationMessage
+                                                For="@(() => appointmentForm.ScheduledAt)" />
+
+                                        </div>
+
+
+                                        <div class="form-group hs-form-full">
+
+                                            <label for="reason">
+                                                Reason
+                                            </label>
+
+                                            <InputTextArea id="reason"
+                                                           class="form-control"
+                                                           @bind-Value="appointmentForm.Reason"
+                                                           disabled="@saving" />
+
+                                            <ValidationMessage
+                                                For="@(() => appointmentForm.Reason)" />
+
+                                        </div>
+
+                                    </div>
+
+
+                                    <div class="hs-modal-footer">
+
+                                        <button type="button"
+                                                class="btn btn-secondary"
+                                                @onclick="CancelForm"
+                                                disabled="@saving">
+
+                                            Cancel
+
+                                        </button>
+
+
+                                        <button type="submit"
+                                                class="btn btn-primary"
+                                                disabled="@saving">
+
+                                            @if (saving)
+                                            {
+                                                <span class="hs-button-spinner"></span>
+                                                <span>Saving...</span>
+                                            }
+                                            else
+                                            {
+                                                <span>
+                                                    @(editingAppointmentId.HasValue
+                                                        ? "Save Changes"
+                                                        : "Book Appointment")
+                                                </span>
+                                            }
+
+                                        </button>
+
+                                    </div>
+
+                                </EditForm>
+                            }
+
+                        </div>
+
+                    </div>
+
+                </div>
+            }
+
+
+            <div class="hs-table-card hs-glass-card">
+
+                <div class="hs-table-header">
+
+                    <div>
+
+                        <h2>Appointment Schedule</h2>
+
+                        <p>
+                            View and manage scheduled patient appointments.
+                        </p>
+
+                    </div>
+
+
+                    <div class="hs-appointment-controls">
+
+                        <div class="hs-search">
+
+                            <span class="hs-search-icon">
+                                ⌕
+                            </span>
+
+                            <input class="form-control"
+                                   placeholder="Search appointments..."
+                                   @bind="searchTerm" />
+
+                        </div>
+
+
+                        <select class="form-select hs-status-filter"
+                                @bind="statusFilter">
+
+                            <option value="All">
+                                All statuses
+                            </option>
+
+                            <option value="Scheduled">
+                                Scheduled
+                            </option>
+
+                            <option value="Completed">
+                                Completed
+                            </option>
+
+                            <option value="Cancelled">
+                                Cancelled
+                            </option>
+
+                            <option value="Rescheduled">
+                                Rescheduled
+                            </option>
+
+                        </select>
+
+
+                        <button class="btn btn-secondary"
+                                @onclick="LoadData"
+                                disabled="@loading">
+
+                            Refresh
+
+                        </button>
+
+                    </div>
+
+                </div>
+
+
+                @if (FilteredAppointments.Any())
+                {
+                    <div class="hs-table-wrapper">
+
+                        <table class="hs-data-table">
+
+                            <thead>
+
+                                <tr>
+
+                                    <th>Appointment</th>
+
+                                    <th>Patient</th>
+
+                                    <th>Practitioner</th>
+
+                                    <th>Date &amp; Time</th>
+
+                                    <th>Reason</th>
+
+                                    <th>Status</th>
+
+                                    @if (CanManageAppointments)
+                                    {
+                                        <th class="hs-action-column">
+                                            Actions
+                                        </th>
+                                    }
+
+                                </tr>
+
+                            </thead>
+
+
+                            <tbody>
+
+                                @foreach (var appointment in FilteredAppointments)
+                                {
+                                    <tr>
+
+                                        <td>
+
+                                            <span class="hs-id-label">
+                                                #@appointment.AppointmentId
+                                            </span>
+
+                                        </td>
+
+
+                                        <td>
+
+                                            <div class="hs-patient-cell">
+
+                                                <div class="hs-patient-avatar">
+                                                    @GetPatientInitials(
+                                                        appointment.PatientId)
+                                                </div>
+
+                                                <div>
+
+                                                    <strong>
+                                                        @GetPatientName(
+                                                            appointment.PatientId)
+                                                    </strong>
+
+                                                    <span class="hs-muted">
+                                                        Patient
+                                                    </span>
+
+                                                </div>
+
+                                            </div>
+
+                                        </td>
+
+
+                                        <td>
+
+                                            <div class="hs-practitioner-cell">
+
+                                                <strong>
+                                                    @GetPractitionerName(
+                                                        appointment.PractitionerId)
+                                                </strong>
+
+                                            </div>
+
+                                        </td>
+
+
+                                       <td>
+
+                                           <div class="hs-datetime-cell">
+
+                                                    <strong>
+                                                     @(appointment.ScheduledAt.ToString("dd/MM/yyyy"))
+                                                    </strong>
+
+                                                 <span class="hs-muted">
+                                                       @(appointment.ScheduledAt.ToString("HH:mm"))
+                                              </span>
+
+                                           </div>
+
+                                       </td>
+
+
+                                        <td>
+
+                                            <span class="hs-reason-cell">
+                                                @(string.IsNullOrWhiteSpace(
+                                                    appointment.Reason)
+                                                    ? "—"
+                                                    : appointment.Reason)
+                                            </span>
+
+                                        </td>
+
+
+                                        <td>
+
+                                            <span class="@GetStatusClass(
+                                                appointment.Status)">
+
+                                                @GetStatusText(
+                                                    appointment.Status)
+
+                                            </span>
+
+                                        </td>
+
+
+                                        @if (CanManageAppointments)
+                                        {
+                                            <td class="hs-action-column">
+
+                                                @if (appointment.Status == 0)
+                                                {
+                                                    <div class="hs-table-actions">
+
+                                                        <button class="btn btn-secondary btn-small"
+                                                                @onclick="() => EditAppointment(appointment)"
+                                                                disabled="@saving">
+
+                                                            Edit
+
+                                                        </button>
+
+                                                        <button class="btn btn-danger btn-small"
+                                                                @onclick="() => CancelAppointment(appointment)"
+                                                                disabled="@saving">
+
+                                                            Cancel
+
+                                                        </button>
+
+                                                    </div>
+                                                }
+                                                else
+                                                {
+                                                    <span class="hs-muted">
+                                                        —
+                                                    </span>
+                                                }
+
+                                            </td>
+                                        }
+
+                                    </tr>
+                                }
+
+                            </tbody>
+
+                        </table>
+
+                    </div>
+                }
+                else
+                {
+                    <div class="hs-empty-state">
+
+                        <div class="hs-empty-icon">
+                            📅
+                        </div>
+
+                        @if (appointments.Count == 0)
+                        {
+                            <h3>No Appointments Found</h3>
+
+                            <p>
+                                There are currently no appointments
+                                registered in the system.
+                            </p>
+
+                            @if (CanManageAppointments &&
+                                 patients.Count > 0 &&
+                                 availablePractitioners.Count > 0)
+                            {
+                                <button class="btn btn-primary"
+                                        @onclick="ShowCreateForm"
+                                        disabled="@saving">
+
+                                    Book First Appointment
+
+                                </button>
+                            }
+                        }
+                        else
+                        {
+                            <h3>No Matching Appointments</h3>
+
+                            <p>
+                                Try changing your search or status filter.
+                            </p>
+                        }
+
+                    </div>
+                }
+
+            </div>
+
+        }
+
+    </div>
+}
+
+
+<ConfirmDialog Visible="@showCancelConfirmation"
+              Title="Cancel Appointment"
+              Message="@($"Are you sure you want to cancel the appointment for {appointmentToCancelPatientName}?")"
+              OnConfirm="ConfirmCancelAppointment"
+              OnCancel="CancelCancelConfirmation" />
+
+
+@code {
+
+    private List<AppointmentResponse> appointments = new();
+
+    private List<PatientResponse> patients = new();
+
+    private List<PractitionerResponse> availablePractitioners = new();
+
+    private AppointmentCreateRequest appointmentForm = new();
+
+    private int? editingAppointmentId;
+
+    private bool loading = true;
+
+    private bool saving;
+
+    private bool showForm;
+
+    private bool showCancelConfirmation;
+
+    private int appointmentToCancelId;
+
+    private string appointmentToCancelPatientName =
+        string.Empty;
+
+    private string searchTerm =
+        string.Empty;
+
+    private string statusFilter =
+        "All";
+
+    private string errorMessage =
+        string.Empty;
+
+    private string formErrorMessage =
+        string.Empty;
+
+    private string successMessage =
+        string.Empty;
+
+
+    private bool CanAccess =>
+        AuthService.IsAuthenticated
+        && (
+            RoleHelper.IsAdmin(
+                AuthService.CurrentUser?.Role)
+
+            || RoleHelper.IsReceptionist(
+                AuthService.CurrentUser?.Role)
+
+            || RoleHelper.IsPractitioner(
+                AuthService.CurrentUser?.Role)
+        );
+
+
+    private bool CanManageAppointments =>
+        AuthService.IsAuthenticated
+        && (
+            RoleHelper.IsAdmin(
+                AuthService.CurrentUser?.Role)
+
+            || RoleHelper.IsReceptionist(
+                AuthService.CurrentUser?.Role)
+        );
+
+
+    private IEnumerable<AppointmentResponse> FilteredAppointments =>
+        appointments
+            .Where(appointment =>
+                MatchesSearch(appointment)
+                && MatchesStatus(appointment))
+            .OrderBy(
+                appointment => appointment.ScheduledAt);
+
+
+    private int ScheduledCount =>
+        appointments.Count(a => a.Status == 0);
+
+
+    private int CompletedCount =>
+        appointments.Count(a => a.Status == 1);
+
+
+    private int CancelledCount =>
+        appointments.Count(a => a.Status == 2);
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        await AuthService.RestoreSessionAsync();
+
+        if (!AuthService.IsAuthenticated)
+        {
+            loading = false;
+            return;
+        }
+
+        if (!CanAccess)
+        {
+            loading = false;
+            return;
+        }
+
+        await LoadData();
+    }
+
+
+    private async Task LoadData()
+    {
+        if (!CanAccess)
+        {
+            return;
+        }
+
+      loading = true;
+
+errorMessage =
+    string.Empty;
+
+        try
+        {
+            var appointmentTask =
+                AppointmentApiService.GetAllAsync();
+
+            var patientTask =
+                PatientApiService.GetAllAsync();
+
+            var practitionerTask =
+                PractitionerApiService.GetAllAsync();
+
+            await Task.WhenAll(
+                appointmentTask,
+                patientTask,
+                practitionerTask);
+
+            appointments =
+                (await appointmentTask).ToList();
+
+            patients =
+                (await patientTask).ToList();
+
+            var allPractitioners =
+                await practitionerTask;
+
+            availablePractitioners =
+                allPractitioners
+                    .Where(p => p.IsAvailable)
+                    .ToList();
+        }
+        catch (Exception ex)
+        {
+            errorMessage =
+                $"Unable to load appointment data. {ex.Message}";
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+
+    private bool MatchesSearch(
+        AppointmentResponse appointment)
+    {
+        if (string.IsNullOrWhiteSpace(searchTerm))
+        {
+            return true;
+        }
+
+        var patientName =
+            GetPatientName(
+                appointment.PatientId);
+
+        var practitionerName =
+            GetPractitionerName(
+                appointment.PractitionerId);
+
+        var reason =
+            appointment.Reason ?? string.Empty;
+
+        var appointmentId =
+            appointment.AppointmentId.ToString();
+
+        return patientName.Contains(
+                   searchTerm,
+                   StringComparison.OrdinalIgnoreCase)
+               || practitionerName.Contains(
+                   searchTerm,
+                   StringComparison.OrdinalIgnoreCase)
+               || reason.Contains(
+                   searchTerm,
+                   StringComparison.OrdinalIgnoreCase)
+               || appointmentId.Contains(
+                   searchTerm,
+                   StringComparison.OrdinalIgnoreCase);
+    }
+
+
+    private bool MatchesStatus(
+        AppointmentResponse appointment)
+    {
+        if (statusFilter == "All")
+        {
+            return true;
+        }
+
+        return GetStatusText(
+                   appointment.Status)
+               .Equals(
+                   statusFilter,
+                   StringComparison.OrdinalIgnoreCase);
+    }
+
+
+    private void ShowCreateForm()
+    {
+        if (!CanManageAppointments || saving)
+        {
+            return;
+        }
+
+        editingAppointmentId = null;
+
+        appointmentForm =
+            new AppointmentCreateRequest
+            {
+                ScheduledAt =
+                    DateTime.Now
+                        .AddHours(1)
+                        .AddMinutes(
+                            -DateTime.Now.Minute)
+            };
+
+        formErrorMessage =
+            string.Empty;
+
+        successMessage =
+            string.Empty;
+
+        showForm = true;
+    }
+
+
+    private void EditAppointment(
+        AppointmentResponse appointment)
+    {
+        if (!CanManageAppointments || saving)
+        {
+            return;
+        }
+
+        editingAppointmentId =
+            appointment.AppointmentId;
+
+        appointmentForm =
+            new AppointmentCreateRequest
+            {
+                PatientId =
+                    appointment.PatientId,
+
+                PractitionerId =
+                    appointment.PractitionerId,
+
+                ScheduledAt =
+                    appointment.ScheduledAt,
+
+                Reason =
+                    appointment.Reason
+            };
+
+        formErrorMessage =
+            string.Empty;
+
+        successMessage =
+            string.Empty;
+
+        showForm = true;
+    }
+
+
+    private async Task SaveAppointment()
+    {
+        if (!CanManageAppointments || saving)
+        {
+            return;
+        }
+
+        saving = true;
+
+        formErrorMessage =
+            string.Empty;
+
+        successMessage =
+            string.Empty;
+
+        try
+        {
+            if (editingAppointmentId.HasValue)
+            {
+                var updateRequest =
+                    new AppointmentUpdateRequest
+                    {
+                        PatientId =
+                            appointmentForm.PatientId,
+
+                        PractitionerId =
+                            appointmentForm.PractitionerId,
+
+                        ScheduledAt =
+                            appointmentForm.ScheduledAt,
+
+                        Reason =
+                            appointmentForm.Reason
+                    };
+
+                await AppointmentApiService.UpdateAsync(
+                    editingAppointmentId.Value,
+                    updateRequest);
+
+                successMessage =
+                    "Appointment updated successfully.";
+            }
+            else
+            {
+                await AppointmentApiService.CreateAsync(
+                    appointmentForm);
+
+                successMessage =
+                    "Appointment booked successfully.";
+            }
+
+            showForm = false;
+
+            editingAppointmentId = null;
+
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            formErrorMessage =
+                $"Unable to save appointment: {ex.Message}";
+        }
+        finally
+        {
+            saving = false;
+        }
+    }
+
+
+    private void CancelAppointment(
+        AppointmentResponse appointment)
+    {
+        if (!CanManageAppointments || saving)
+        {
+            return;
+        }
+
+        appointmentToCancelId =
+            appointment.AppointmentId;
+
+        appointmentToCancelPatientName =
+            GetPatientName(
+                appointment.PatientId);
+
+        errorMessage =
+            string.Empty;
+
+        successMessage =
+            string.Empty;
+
+        showCancelConfirmation = true;
+    }
+
+
+    private async Task ConfirmCancelAppointment()
+    {
+        if (!CanManageAppointments || saving)
+        {
+            showCancelConfirmation = false;
+            return;
+        }
+
+        saving = true;
+
+        showCancelConfirmation = false;
+
+        errorMessage =
+            string.Empty;
+
+        successMessage =
+            string.Empty;
+
+        try
+        {
+            await AppointmentApiService.CancelAsync(
+                appointmentToCancelId);
+
+            successMessage =
+                "Appointment cancelled successfully.";
+
+            appointmentToCancelId = 0;
+
+            appointmentToCancelPatientName =
+                string.Empty;
+
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            errorMessage =
+                $"Unable to cancel appointment: {ex.Message}";
+        }
+        finally
+        {
+            saving = false;
+        }
+    }
+
+
+    private void CancelCancelConfirmation()
+    {
+        if (saving)
+        {
+            return;
+        }
+
+        showCancelConfirmation = false;
+
+        appointmentToCancelId = 0;
+
+        appointmentToCancelPatientName =
+            string.Empty;
+    }
+
+
+    private void CancelForm()
+    {
+        if (saving)
+        {
+            return;
+        }
+
+        showForm = false;
+
+        editingAppointmentId = null;
+
+        formErrorMessage =
+            string.Empty;
+    }
+
+
+    private string GetPatientName(
+        int patientId)
+    {
+        var patient =
+            patients.FirstOrDefault(
+                p => p.PatientId == patientId);
+
+        return patient == null
+            ? $"Patient #{patientId}"
+            : $"{patient.FirstName} {patient.LastName}";
+    }
+
+
+    private string GetPatientInitials(
+        int patientId)
+    {
+        var patient =
+            patients.FirstOrDefault(
+                p => p.PatientId == patientId);
+
+        if (patient == null)
+        {
+            return "?";
+        }
+
+        var first =
+            string.IsNullOrWhiteSpace(
+                patient.FirstName)
+                ? ""
+                : patient.FirstName[..1]
+                    .ToUpper();
+
+        var last =
+            string.IsNullOrWhiteSpace(
+                patient.LastName)
+                ? ""
+                : patient.LastName[..1]
+                    .ToUpper();
+
+        return $"{first}{last}";
+    }
+
+
+    private string GetPractitionerName(
+        int practitionerId)
+    {
+        var practitioner =
+            availablePractitioners.FirstOrDefault(
+                p => p.PractitionerId == practitionerId);
+
+        if (practitioner == null)
+        {
+            return $"Practitioner #{practitionerId}";
+        }
+
+        return $"{practitioner.FirstName} " +
+               $"{practitioner.LastName}";
+    }
+
+
+    private string GetStatusText(
+        int status)
+    {
+        return status switch
+        {
+            0 => "Scheduled",
+            1 => "Completed",
+            2 => "Cancelled",
+            3 => "Rescheduled",
+            _ => "Unknown"
+        };
+    }
+
+
+    private string GetStatusClass(
+        int status)
+    {
+        return status switch
+        {
+            0 => "hs-data-badge badge-info",
+            1 => "hs-data-badge badge-success",
+            2 => "hs-data-badge badge-danger",
+            3 => "hs-data-badge badge-warning",
+            _ => "hs-data-badge badge-neutral"
+        };
+    }
+}

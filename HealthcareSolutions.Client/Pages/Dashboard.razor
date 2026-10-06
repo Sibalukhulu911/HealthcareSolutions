@@ -1,0 +1,688 @@
+@page "/dashboard"
+
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+
+<PageTitle>Dashboard</PageTitle>
+
+<div class="hs-dashboard">
+
+    @if (loading)
+    {
+        <div class="hs-loading">
+            <div class="hs-spinner"></div>
+            <p>Loading your dashboard...</p>
+        </div>
+    }
+    else if (!AuthService.IsAuthenticated)
+    {
+        <div class="hs-glass-card hs-dashboard-empty">
+
+            <div class="hs-empty-icon">
+                <span class="bi bi-lock-fill"></span>
+            </div>
+
+            <h2>Authentication Required</h2>
+
+            <p>
+                Please log in to access your HealthcareSolutions dashboard.
+            </p>
+
+            <button class="btn btn-primary"
+                    @onclick="GoToLogin">
+                <span class="bi bi-box-arrow-in-right"></span>
+                Login
+            </button>
+
+        </div>
+    }
+    else
+    {
+        <!-- =====================================================
+             HEADER
+             ===================================================== -->
+
+        <div class="hs-dashboard-header">
+
+            <div>
+
+                <div class="hs-page-eyebrow">
+                    Healthcare Management System
+                </div>
+
+                <h1>
+                    Welcome back,
+                    @AuthService.CurrentUser!.Username
+                </h1>
+
+                <p>
+                    Here's an overview of your healthcare workspace.
+                </p>
+
+            </div>
+
+            <div class="hs-dashboard-role">
+
+                <span class="hs-role-icon">
+                    <span class="bi bi-person-badge-fill"></span>
+                </span>
+
+                <div>
+                    <span class="hs-role-label">Signed in as</span>
+
+                    <strong>
+                        @AuthService.CurrentUser.Role
+                    </strong>
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- =====================================================
+             STATISTICS
+             ===================================================== -->
+
+        <div class="hs-stat-grid">
+
+            @if (RoleHelper.IsAdmin(
+                    AuthService.CurrentUser.Role))
+            {
+                <button class="hs-stat-card"
+                        @onclick="GoToPatients">
+
+                    <div class="hs-stat-icon hs-stat-icon-green">
+                        <span class="bi bi-people-fill"></span>
+                    </div>
+
+                    <div>
+                        <div class="hs-stat-value">Patients</div>
+                        <div class="hs-stat-label">
+                            Patient management
+                        </div>
+                    </div>
+
+                    <span class="bi bi-arrow-up-right hs-stat-arrow"></span>
+
+                </button>
+
+
+                <button class="hs-stat-card"
+                        @onclick="GoToPractitioners">
+
+                    <div class="hs-stat-icon hs-stat-icon-blue">
+                        <span class="bi bi-person-badge-fill"></span>
+                    </div>
+
+                    <div>
+                        <div class="hs-stat-value">Practitioners</div>
+                        <div class="hs-stat-label">
+                            Healthcare professionals
+                        </div>
+                    </div>
+
+                    <span class="bi bi-arrow-up-right hs-stat-arrow"></span>
+
+                </button>
+
+
+                <button class="hs-stat-card"
+                        @onclick="GoToAppointments">
+
+                    <div class="hs-stat-icon hs-stat-icon-purple">
+                        <span class="bi bi-calendar-check-fill"></span>
+                    </div>
+
+                    <div>
+                        <div class="hs-stat-value">Appointments</div>
+                        <div class="hs-stat-label">
+                            Scheduling and tracking
+                        </div>
+                    </div>
+
+                    <span class="bi bi-arrow-up-right hs-stat-arrow"></span>
+
+                </button>
+
+
+                <button class="hs-stat-card"
+                        @onclick="GoToUsers">
+
+                    <div class="hs-stat-icon hs-stat-icon-amber">
+                        <span class="bi bi-person-gear"></span>
+                    </div>
+
+                    <div>
+                        <div class="hs-stat-value">Users</div>
+                        <div class="hs-stat-label">
+                            System administration
+                        </div>
+                    </div>
+
+                    <span class="bi bi-arrow-up-right hs-stat-arrow"></span>
+
+                </button>
+            }
+
+
+            @if (RoleHelper.IsReceptionist(
+                    AuthService.CurrentUser.Role))
+            {
+                <button class="hs-stat-card"
+                        @onclick="GoToPatients">
+
+                    <div class="hs-stat-icon hs-stat-icon-green">
+                        <span class="bi bi-people-fill"></span>
+                    </div>
+
+                    <div>
+                        <div class="hs-stat-value">Patients</div>
+                        <div class="hs-stat-label">
+                            Register and manage patients
+                        </div>
+                    </div>
+
+                    <span class="bi bi-arrow-up-right hs-stat-arrow"></span>
+
+                </button>
+
+
+                <button class="hs-stat-card"
+                        @onclick="GoToAppointments">
+
+                    <div class="hs-stat-icon hs-stat-icon-purple">
+                        <span class="bi bi-calendar-check-fill"></span>
+                    </div>
+
+                    <div>
+                        <div class="hs-stat-value">Appointments</div>
+                        <div class="hs-stat-label">
+                            Book and manage appointments
+                        </div>
+                    </div>
+
+                    <span class="bi bi-arrow-up-right hs-stat-arrow"></span>
+
+                </button>
+            }
+
+
+            @if (RoleHelper.IsPractitioner(
+                    AuthService.CurrentUser.Role))
+            {
+                <button class="hs-stat-card"
+                        @onclick="GoToAppointments">
+
+                    <div class="hs-stat-icon hs-stat-icon-purple">
+                        <span class="bi bi-calendar-check-fill"></span>
+                    </div>
+
+                    <div>
+                        <div class="hs-stat-value">Appointments</div>
+                        <div class="hs-stat-label">
+                            View scheduled appointments
+                        </div>
+                    </div>
+
+                    <span class="bi bi-arrow-up-right hs-stat-arrow"></span>
+
+                </button>
+
+
+                <button class="hs-stat-card"
+                        @onclick="GoToPatients">
+
+                    <div class="hs-stat-icon hs-stat-icon-green">
+                        <span class="bi bi-person-vcard-fill"></span>
+                    </div>
+
+                    <div>
+                        <div class="hs-stat-value">Patients</div>
+                        <div class="hs-stat-label">
+                            View patient information
+                        </div>
+                    </div>
+
+                    <span class="bi bi-arrow-up-right hs-stat-arrow"></span>
+
+                </button>
+
+
+                <button class="hs-stat-card"
+                        @onclick="GoToMedicalRecords">
+
+                    <div class="hs-stat-icon hs-stat-icon-blue">
+                        <span class="bi bi-file-medical-fill"></span>
+                    </div>
+
+                    <div>
+                        <div class="hs-stat-value">Medical Records</div>
+                        <div class="hs-stat-label">
+                            Clinical patient records
+                        </div>
+                    </div>
+
+                    <span class="bi bi-arrow-up-right hs-stat-arrow"></span>
+
+                </button>
+
+
+                <button class="hs-stat-card"
+                        @onclick="GoToPrescriptions">
+
+                    <div class="hs-stat-icon hs-stat-icon-amber">
+                        <span class="bi bi-prescription2"></span>
+                    </div>
+
+                    <div>
+                        <div class="hs-stat-value">Prescriptions</div>
+                        <div class="hs-stat-label">
+                            Create and manage prescriptions
+                        </div>
+                    </div>
+
+                    <span class="bi bi-arrow-up-right hs-stat-arrow"></span>
+
+                </button>
+            }
+
+
+            @if (RoleHelper.IsPharmacist(
+                    AuthService.CurrentUser.Role))
+            {
+                <button class="hs-stat-card"
+                        @onclick="GoToPrescriptions">
+
+                    <div class="hs-stat-icon hs-stat-icon-purple">
+                        <span class="bi bi-prescription2"></span>
+                    </div>
+
+                    <div>
+                        <div class="hs-stat-value">Prescriptions</div>
+                        <div class="hs-stat-label">
+                            View and dispense prescriptions
+                        </div>
+                    </div>
+
+                    <span class="bi bi-arrow-up-right hs-stat-arrow"></span>
+
+                </button>
+
+
+                <button class="hs-stat-card"
+                        @onclick="GoToMedications">
+
+                    <div class="hs-stat-icon hs-stat-icon-green">
+                        <span class="bi bi-capsule-pill"></span>
+                    </div>
+
+                    <div>
+                        <div class="hs-stat-value">Medications</div>
+                        <div class="hs-stat-label">
+                            Manage medication catalogue
+                        </div>
+                    </div>
+
+                    <span class="bi bi-arrow-up-right hs-stat-arrow"></span>
+
+                </button>
+
+
+                <button class="hs-stat-card"
+                        @onclick="GoToMedicationRequests">
+
+                    <div class="hs-stat-icon hs-stat-icon-amber">
+                        <span class="bi bi-clipboard2-pulse"></span>
+                    </div>
+
+                    <div>
+                        <div class="hs-stat-value">Medication Requests</div>
+                        <div class="hs-stat-label">
+                            Review practitioner requests
+                        </div>
+                    </div>
+
+                    <span class="bi bi-arrow-up-right hs-stat-arrow"></span>
+
+                </button>
+            }
+
+        </div>
+
+
+        <!-- =====================================================
+             QUICK ACTIONS
+             ===================================================== -->
+
+        <div class="hs-dashboard-section">
+
+            <div class="hs-section-heading">
+
+                <div>
+                    <h2>Quick Actions</h2>
+
+                    <p>
+                        Access the areas you use most.
+                    </p>
+                </div>
+
+            </div>
+
+
+            <div class="hs-action-grid">
+
+                @if (RoleHelper.IsAdmin(
+                        AuthService.CurrentUser.Role))
+                {
+                    <button class="hs-action-card"
+                            @onclick="GoToPatients">
+
+                        <span class="bi bi-person-plus-fill"></span>
+
+                        <div>
+                            <strong>Manage Patients</strong>
+
+                            <small>
+                                Register and update patient information
+                            </small>
+                        </div>
+
+                    </button>
+
+
+                    <button class="hs-action-card"
+                            @onclick="GoToAppointments">
+
+                        <span class="bi bi-calendar-plus-fill"></span>
+
+                        <div>
+                            <strong>Appointments</strong>
+
+                            <small>
+                                Manage appointments and schedules
+                            </small>
+                        </div>
+
+                    </button>
+
+
+                    <button class="hs-action-card"
+                            @onclick="GoToMedicalRecords">
+
+                        <span class="bi bi-file-medical-fill"></span>
+
+                        <div>
+                            <strong>Medical Records</strong>
+
+                            <small>
+                                Access clinical records
+                            </small>
+                        </div>
+
+                    </button>
+                }
+
+
+                @if (RoleHelper.IsReceptionist(
+                        AuthService.CurrentUser.Role))
+                {
+                    <button class="hs-action-card"
+                            @onclick="GoToPatients">
+
+                        <span class="bi bi-person-plus-fill"></span>
+
+                        <div>
+                            <strong>Register Patient</strong>
+
+                            <small>
+                                Add a new patient profile
+                            </small>
+                        </div>
+
+                    </button>
+
+
+                    <button class="hs-action-card"
+                            @onclick="GoToAppointments">
+
+                        <span class="bi bi-calendar-plus-fill"></span>
+
+                        <div>
+                            <strong>Book Appointment</strong>
+
+                            <small>
+                                Schedule a patient appointment
+                            </small>
+                        </div>
+
+                    </button>
+                }
+
+
+                @if (RoleHelper.IsPractitioner(
+                        AuthService.CurrentUser.Role))
+                {
+                    <button class="hs-action-card"
+                            @onclick="GoToVisitNotes">
+
+                        <span class="bi bi-journal-medical"></span>
+
+                        <div>
+                            <strong>Visit Notes</strong>
+
+                            <small>
+                                Record clinical observations
+                            </small>
+                        </div>
+
+                    </button>
+
+
+                    <button class="hs-action-card"
+                            @onclick="GoToPrescriptions">
+
+                        <span class="bi bi-prescription2"></span>
+
+                        <div>
+                            <strong>Create Prescription</strong>
+
+                            <small>
+                                Prescribe medication for a patient
+                            </small>
+                        </div>
+
+                    </button>
+
+
+                    <button class="hs-action-card"
+                            @onclick="GoToMedicationRequests">
+
+                        <span class="bi bi-clipboard2-pulse"></span>
+
+                        <div>
+                            <strong>Medication Request</strong>
+
+                            <small>
+                                Request a missing medication
+                            </small>
+                        </div>
+
+                    </button>
+                }
+
+
+                @if (RoleHelper.IsPharmacist(
+                        AuthService.CurrentUser.Role))
+                {
+                    <button class="hs-action-card"
+                            @onclick="GoToPrescriptions">
+
+                        <span class="bi bi-prescription2"></span>
+
+                        <div>
+                            <strong>Dispense Prescriptions</strong>
+
+                            <small>
+                                Process pending prescriptions
+                            </small>
+                        </div>
+
+                    </button>
+
+
+                    <button class="hs-action-card"
+                            @onclick="GoToMedications">
+
+                        <span class="bi bi-capsule-pill"></span>
+
+                        <div>
+                            <strong>Medication Catalogue</strong>
+
+                            <small>
+                                Manage available medications
+                            </small>
+                        </div>
+
+                    </button>
+
+
+                    <button class="hs-action-card"
+                            @onclick="GoToMedicationRequests">
+
+                        <span class="bi bi-clipboard2-check-fill"></span>
+
+                        <div>
+                            <strong>Review Requests</strong>
+
+                            <small>
+                                Approve or reject medication requests
+                            </small>
+                        </div>
+
+                    </button>
+                }
+
+            </div>
+
+        </div>
+
+
+        <!-- =====================================================
+             SYSTEM STATUS
+             ===================================================== -->
+
+        <div class="hs-dashboard-footer">
+
+            <div class="hs-status-card">
+
+                <div class="hs-status-indicator"></div>
+
+                <div>
+
+                    <strong>System Operational</strong>
+
+                    <span>
+                        HealthcareSolutions services are available.
+                    </span>
+
+                </div>
+
+            </div>
+
+
+            <div class="hs-status-card">
+
+                <span class="bi bi-shield-check hs-security-icon"></span>
+
+                <div>
+
+                    <strong>Secure Access</strong>
+
+                    <span>
+                        Your account permissions are active.
+                    </span>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    }
+
+</div>
+
+
+@code {
+
+    private bool loading = true;
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        await AuthService.RestoreSessionAsync();
+
+        loading = false;
+    }
+
+
+    private void GoToLogin()
+    {
+        Navigation.NavigateTo("/login");
+    }
+
+
+    private void GoToUsers()
+    {
+        Navigation.NavigateTo("/users");
+    }
+
+
+    private void GoToPractitioners()
+    {
+        Navigation.NavigateTo("/practitioners");
+    }
+
+
+    private void GoToPatients()
+    {
+        Navigation.NavigateTo("/patients");
+    }
+
+
+    private void GoToAppointments()
+    {
+        Navigation.NavigateTo("/appointments");
+    }
+
+
+    private void GoToMedicalRecords()
+    {
+        Navigation.NavigateTo("/medical-records");
+    }
+
+
+    private void GoToVisitNotes()
+    {
+        Navigation.NavigateTo("/visit-notes");
+    }
+
+
+    private void GoToPrescriptions()
+    {
+        Navigation.NavigateTo("/prescriptions");
+    }
+
+
+    private void GoToMedications()
+    {
+        Navigation.NavigateTo("/medications");
+    }
+
+
+    private void GoToMedicationRequests()
+    {
+        Navigation.NavigateTo("/medication-requests");
+    }
+}

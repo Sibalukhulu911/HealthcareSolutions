@@ -1,0 +1,58 @@
+.prescription-container {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.prescription-card {
+    background: #ffffff;
+    border-radius: 8px;
+    padding: 24px;
+    margin-bottom: 24px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+    .prescription-card h2 {
+        margin-bottom: 20px;
+    }
+
+.form-group {
+    margin-bottom: 16px;
+}
+
+    .form-group label {
+        display: block;
+        font-weight: 600;
+        margin-bottom: 6px;
+    }
+
+.form-control {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+}
+
+.prescription-table {
+    width: 100%;
+    margin-top: 20px;
+}
+
+    .prescription-table th,
+    .prescription-table td {
+        vertical-align: middle;
+        padding: 10px;
+    }
+
+.status-badge {
+    display: inline-block;
+    padding: 5px 10px;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.btn {
+    margin-right: 6px;
+    margin-bottom: 4px;
+}
+

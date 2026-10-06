@@ -1,0 +1,61 @@
+@if (IsLoading)
+{
+    <div class="loading-state">
+        <div class="spinner-border" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+
+        <p>@LoadingMessage</p>
+    </div>
+}
+else if (!string.IsNullOrWhiteSpace(ErrorMessage))
+{
+    <div class="feedback-state error-state">
+        <h4>Unable to load data</h4>
+
+        <p>@ErrorMessage</p>
+
+        @if (OnRetry.HasDelegate)
+        {
+            <button class="btn btn-primary" @onclick="Retry">
+                Try Again
+            </button>
+        }
+    </div>
+}
+else if (!string.IsNullOrWhiteSpace(EmptyMessage))
+{
+    <div class="feedback-state empty-state">
+        <h4>@EmptyTitle</h4>
+
+        <p>@EmptyMessage</p>
+    </div>
+}
+
+@code {
+
+    [Parameter]
+    public bool IsLoading { get; set; }
+
+    [Parameter]
+    public string LoadingMessage { get; set; }
+        = "Loading...";
+
+    [Parameter]
+    public string? ErrorMessage { get; set; }
+
+    [Parameter]
+    public string EmptyTitle { get; set; }
+        = "No data available";
+
+    [Parameter]
+    public string? EmptyMessage { get; set; }
+
+    [Parameter]
+    public EventCallback OnRetry { get; set; }
+
+    private async Task Retry()
+    {
+        await OnRetry.InvokeAsync();
+    }
+}

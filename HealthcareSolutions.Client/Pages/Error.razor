@@ -1,0 +1,45 @@
+@page "/error"
+
+<PageTitle>Error</PageTitle>
+
+<div class="error-page">
+    <div class="error-card">
+
+        <div class="error-icon">
+            !
+        </div>
+
+        <h1>Something went wrong</h1>
+
+        <p>
+            We're sorry, but the application encountered an unexpected error.
+        </p>
+
+        <p>
+            Please try again. If the problem continues, contact an administrator.
+        </p>
+
+        <div class="error-actions">
+            <button class="btn btn-primary" @onclick="ReloadPage">
+                Try Again
+            </button>
+
+            <a class="btn btn-secondary" href="/">
+                Return to Dashboard
+            </a>
+        </div>
+
+    </div>
+</div>
+
+@code {
+    private void ReloadPage()
+    {
+        NavigationManager.NavigateTo(
+            NavigationManager.Uri,
+            forceLoad: true);
+    }
+
+    [Inject]
+    private NavigationManager NavigationManager { get; set; } = default!;
+}

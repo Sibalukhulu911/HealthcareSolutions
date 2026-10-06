@@ -1,0 +1,1030 @@
+﻿@page "/medications"
+
+@using HealthcareSolutions.Client.Shared
+
+@inject MedicationApiService MedicationApiService
+@inject AuthService AuthService
+
+<PageTitle>Medications</PageTitle>
+
+@if (!AuthService.IsAuthenticated)
+{
+    <div class="hs-page">
+
+        <div class="hs-access-card hs-glass-card">
+
+            <div class="hs-access-icon">
+                !
+            </div>
+
+            <div>
+                <h2>Login Required</h2>
+
+                <p>
+                    Please log in to access medications.
+                </p>
+            </div>
+
+        </div>
+
+    </div>
+}
+else if (!CanAccess)
+{
+    <div class="hs-page">
+
+        <div class="hs-access-card hs-glass-card">
+
+            <div class="hs-access-icon hs-access-danger">
+                !
+            </div>
+
+            <div>
+                <h2>Access Denied</h2>
+
+                <p>
+                    You do not have permission to access medications.
+                </p>
+            </div>
+
+        </div>
+
+    </div>
+}
+else
+{
+    <div class="hs-page hs-medications-page">
+
+        <!-- PAGE HEADER -->
+
+        <div class="hs-page-header">
+
+            <div>
+
+                <div class="hs-eyebrow">
+                    PHARMACY &amp; MEDICATION MANAGEMENT
+                </div>
+
+                <h1>Medications</h1>
+
+                <p>
+                    View and manage the medication catalogue.
+                </p>
+
+            </div>
+
+            @if (CanManage)
+            {
+                <button class="btn btn-primary"
+                        @onclick="OpenAddForm"
+                        disabled="@isSaving">
+
+                    <span class="hs-button-icon">+</span>
+                    Add Medication
+
+                </button>
+            }
+
+        </div>
+
+
+        <!-- GENERAL ERROR -->
+
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="alert alert-danger hs-alert">
+
+                <strong>Something went wrong</strong>
+
+                <span>
+                    @errorMessage
+                </span>
+
+            </div>
+
+            <button class="btn btn-secondary"
+                    @onclick="LoadMedications"
+                    disabled="@loading">
+
+                <span class="bi bi-arrow-clockwise"></span>
+
+                Try Again
+
+            </button>
+        }
+
+
+        <!-- DELETE WARNING -->
+
+        @if (!string.IsNullOrWhiteSpace(deleteWarningMessage))
+        {
+            <div class="alert alert-warning hs-alert">
+
+                <strong>Medication cannot be deleted</strong>
+
+                <span>
+                    @deleteWarningMessage
+                </span>
+
+            </div>
+        }
+
+
+        <!-- SUCCESS -->
+
+        @if (!string.IsNullOrWhiteSpace(successMessage))
+        {
+            <div class="alert alert-success hs-alert">
+
+                <strong>Success</strong>
+
+                <span>
+                    @successMessage
+                </span>
+
+            </div>
+        }
+
+
+        <!-- LOADING -->
+
+        @if (loading)
+        {
+            <div class="hs-glass-card hs-loading">
+
+                <div class="hs-spinner"></div>
+
+                <span>
+                    Loading medications...
+                </span>
+
+            </div>
+        }
+        else
+        {
+            <!-- SUMMARY -->
+
+            <div class="hs-medication-summary">
+
+                <div class="hs-stat-card">
+
+                    <div class="hs-stat-icon">
+                        Rx
+                    </div>
+
+                    <div>
+                        <div class="hs-stat-value">
+                            @medications.Count
+                        </div>
+
+                        <div class="hs-stat-label">
+                            Total medications
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="hs-stat-card">
+
+                    <div class="hs-stat-icon hs-stat-icon-success">
+                        ✓
+                    </div>
+
+                    <div>
+                        <div class="hs-stat-value">
+                            @medications.Count(m => m.IsAvailable)
+                        </div>
+
+                        <div class="hs-stat-label">
+                            Available
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="hs-stat-card">
+
+                    <div class="hs-stat-icon hs-stat-icon-danger">
+                        !
+                    </div>
+
+                    <div>
+                        <div class="hs-stat-value">
+                            @medications.Count(m => !m.IsAvailable)
+                        </div>
+
+                        <div class="hs-stat-label">
+                            Unavailable
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- ADD / EDIT FORM -->
+
+            @if (showForm && CanManage)
+            {
+                <div class="hs-glass-card hs-medication-form-card">
+
+                    <div class="hs-section-header">
+
+                        <div class="hs-section-title-group">
+
+                            <div class="hs-section-icon">
+                                @(editingMedicationId == null
+                                    ? "+"
+                                    : "✎")
+                            </div>
+
+                            <div>
+
+                                <h2>
+                                    @(editingMedicationId == null
+                                        ? "Add Medication"
+                                        : "Edit Medication")
+                                </h2>
+
+                                <p>
+                                    @(editingMedicationId == null
+                                        ? "Add a medication to the catalogue."
+                                        : "Update the medication details below.")
+                                </p>
+
+                            </div>
+
+                        </div>
+
+                        <span class="badge badge-info">
+                            @(IsAdmin ? "Admin / Pharmacist" : "Pharmacist")
+                        </span>
+
+                    </div>
+
+
+                    <EditForm Model="medicationModel"
+                              OnValidSubmit="SaveMedication">
+
+                        <DataAnnotationsValidator />
+
+                        <ValidationSummary />
+
+
+                        @if (!string.IsNullOrWhiteSpace(formErrorMessage))
+                        {
+                            <div class="alert alert-danger hs-alert">
+
+                                <strong>Unable to save medication</strong>
+
+                                <span>
+                                    @formErrorMessage
+                                </span>
+
+                            </div>
+                        }
+
+
+                        <div class="hs-form-grid hs-medication-form-grid">
+
+                            <div class="form-group">
+
+                                <label>
+                                    Medication Name
+                                </label>
+
+                                <InputText class="form-control"
+                                           @bind-Value="medicationModel.MedicationName"
+                                           disabled="@isSaving"
+                                           placeholder="e.g. Paracetamol" />
+
+                                <ValidationMessage
+                                    For="@(() => medicationModel.MedicationName)" />
+
+                            </div>
+
+
+                            <div class="form-group">
+
+                                <label>
+                                    Dosage
+                                </label>
+
+                                <InputText class="form-control"
+                                           @bind-Value="medicationModel.Dosage"
+                                           placeholder="e.g. 500mg"
+                                           disabled="@isSaving" />
+
+                                <ValidationMessage
+                                    For="@(() => medicationModel.Dosage)" />
+
+                            </div>
+
+
+                            <div class="form-group hs-form-full">
+
+                                <label>
+                                    Description
+                                </label>
+
+                                <InputTextArea class="form-control"
+                                               @bind-Value="medicationModel.Description"
+                                               rows="4"
+                                               disabled="@isSaving"
+                                               placeholder="Enter a brief description of the medication" />
+
+                                <ValidationMessage
+                                    For="@(() => medicationModel.Description)" />
+
+                            </div>
+
+
+                            <div class="form-group hs-availability-field">
+
+                                <label>
+                                    Availability
+                                </label>
+
+                                <label class="hs-toggle">
+
+                                    <InputCheckbox class="hs-toggle-input"
+                                                   @bind-Value="medicationModel.IsAvailable"
+                                                   disabled="@isSaving" />
+
+                                    <span class="hs-toggle-slider"></span>
+
+                                    <span class="hs-toggle-label">
+                                        Medication Available
+                                    </span>
+
+                                </label>
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="hs-form-footer">
+
+                            <div class="hs-form-hint">
+                                Ensure the medication information is
+                                correct before saving.
+                            </div>
+
+                            <div class="hs-form-actions">
+
+                                <button type="button"
+                                        class="btn btn-secondary"
+                                        @onclick="CancelForm"
+                                        disabled="@isSaving">
+
+                                    Cancel
+
+                                </button>
+
+                                <button type="submit"
+                                        class="btn btn-primary"
+                                        disabled="@isSaving">
+
+                                    @if (isSaving)
+                                    {
+                                        <span class="hs-button-spinner"></span>
+                                        <span>Saving...</span>
+                                    }
+                                    else
+                                    {
+                                        <span>
+                                            @(editingMedicationId == null
+                                                ? "Add Medication"
+                                                : "Save Changes")
+                                        </span>
+                                    }
+
+                                </button>
+
+                            </div>
+
+                        </div>
+
+                    </EditForm>
+
+                </div>
+            }
+
+
+            <!-- EMPTY STATE -->
+
+            @if (medications.Count == 0)
+            {
+                <div class="hs-glass-card hs-empty-state">
+
+                    <div class="hs-empty-icon">
+                        Rx
+                    </div>
+
+                    <h3>
+                        No Medications Found
+                    </h3>
+
+                    <p>
+                        There are currently no medications in the catalogue.
+                    </p>
+
+                    @if (CanManage)
+                    {
+                        <p>
+                            Add the first medication to begin building
+                            the medication catalogue.
+                        </p>
+
+                        <button type="button"
+                                class="btn btn-primary"
+                                @onclick="OpenAddForm"
+                                disabled="@isSaving">
+
+                            Add First Medication
+
+                        </button>
+                    }
+                    else
+                    {
+                        <p>
+                            Medications will appear here once they have
+                            been added to the catalogue.
+                        </p>
+                    }
+
+                </div>
+            }
+            else
+            {
+                <!-- CATALOGUE -->
+
+                <div class="hs-glass-card hs-medication-table-card">
+
+                    <div class="hs-section-header">
+
+                        <div class="hs-section-title-group">
+
+                            <div class="hs-section-icon">
+                                Rx
+                            </div>
+
+                            <div>
+
+                                <h2>
+                                    Medication Catalogue
+                                </h2>
+
+                                <p>
+                                    Browse the medications currently
+                                    available in the system.
+                                </p>
+
+                            </div>
+
+                        </div>
+
+                        <button class="btn btn-secondary"
+                                @onclick="LoadMedications"
+                                disabled="@loading">
+
+                            <span class="bi bi-arrow-clockwise"></span>
+
+                            Try Again
+
+                        </button>
+
+                    </div>
+
+
+                    <div class="table-card">
+
+                        <div class="table-responsive">
+
+                            <table class="table hs-data-table">
+
+                                <thead>
+
+                                    <tr>
+
+                                        <th>Medication</th>
+                                        <th>Dosage</th>
+                                        <th>Description</th>
+                                        <th>Availability</th>
+
+                                        @if (CanManage)
+                                        {
+                                            <th>Actions</th>
+                                        }
+
+                                    </tr>
+
+                                </thead>
+
+                                <tbody>
+
+                                    @foreach (var medication in medications)
+                                    {
+                                        <tr>
+
+                                            <td>
+
+                                                <div class="hs-medication-cell">
+
+                                                    <div class="hs-medication-icon">
+                                                        Rx
+                                                    </div>
+
+                                                    <div>
+
+                                                        <strong>
+                                                            @medication.MedicationName
+                                                        </strong>
+
+                                                        <span class="hs-muted">
+                                                            Medication #
+                                                            @medication.MedicationId
+                                                        </span>
+
+                                                    </div>
+
+                                                </div>
+
+                                            </td>
+
+
+                                            <td>
+
+                                                <span class="hs-data-value">
+                                                    @medication.Dosage
+                                                </span>
+
+                                            </td>
+
+
+                                            <td>
+
+                                                <span class="hs-description-cell">
+
+                                                    @(string.IsNullOrWhiteSpace(
+                                                        medication.Description)
+                                                        ? "—"
+                                                        : medication.Description)
+
+                                                </span>
+
+                                            </td>
+
+
+                                            <td>
+
+                                                @if (medication.IsAvailable)
+                                                {
+                                                    <span class="hs-data-badge badge-success">
+                                                        <span class="hs-badge-dot"></span>
+                                                        Available
+                                                    </span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="hs-data-badge badge-danger">
+                                                        <span class="hs-badge-dot"></span>
+                                                        Unavailable
+                                                    </span>
+                                                }
+
+                                            </td>
+
+
+                                            @if (CanManage)
+                                            {
+                                                <td>
+
+                                                    <div class="hs-table-actions">
+
+                                                        <button type="button"
+                                                                class="btn btn-secondary btn-small"
+                                                                @onclick="() => OpenEditForm(medication)"
+                                                                disabled="@isSaving">
+
+                                                            Edit
+
+                                                        </button>
+
+                                                        @if (IsAdmin)
+                                                        {
+                                                            <button type="button"
+                                                                    class="btn btn-danger btn-small"
+                                                                    @onclick="() => ShowDeleteConfirmation(
+                                                                        medication.MedicationId,
+                                                                        medication.MedicationName)"
+                                                                    disabled="@isSaving">
+
+                                                                Delete
+
+                                                            </button>
+                                                        }
+
+                                                    </div>
+
+                                                </td>
+                                            }
+
+                                        </tr>
+                                    }
+
+                                </tbody>
+
+                            </table>
+
+                        </div>
+
+                    </div>
+
+                </div>
+            }
+        }
+
+    </div>
+}
+
+
+<ConfirmDialog Visible="@showDeleteConfirmation"
+               Title="Delete Medication"
+               Message="@($"Are you sure you want to delete {medicationToDeleteName}? This action cannot be undone.")"
+               OnConfirm="ConfirmDeleteMedication"
+               OnCancel="CancelDeleteMedication" />
+
+
+@code {
+
+    private List<MedicationResponse> medications = new();
+
+    private MedicationCreateRequest medicationModel = new();
+
+    private int? editingMedicationId;
+
+    private bool loading = true;
+
+    private bool isSaving;
+
+    private bool showForm;
+
+    private bool showDeleteConfirmation;
+
+    private int medicationToDeleteId;
+
+    private string medicationToDeleteName = string.Empty;
+
+    private string errorMessage = string.Empty;
+
+    private string deleteWarningMessage = string.Empty;
+
+    private string formErrorMessage = string.Empty;
+
+    private string successMessage = string.Empty;
+
+
+    private bool IsAdmin =>
+        AuthService.CurrentUser != null
+        && RoleHelper.IsAdmin(
+            AuthService.CurrentUser.Role);
+
+    private bool IsPharmacist =>
+        AuthService.CurrentUser != null
+        && RoleHelper.IsPharmacist(
+            AuthService.CurrentUser.Role);
+
+    private bool IsPractitioner =>
+        AuthService.CurrentUser != null
+        && RoleHelper.IsPractitioner(
+            AuthService.CurrentUser.Role);
+
+    private bool CanAccess =>
+        AuthService.IsAuthenticated
+        && (
+            IsAdmin
+            || IsPharmacist
+            || IsPractitioner
+        );
+
+    private bool CanManage =>
+        AuthService.IsAuthenticated
+        && (
+            IsAdmin
+            || IsPharmacist
+        );
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        await AuthService.RestoreSessionAsync();
+
+        if (!AuthService.IsAuthenticated)
+        {
+            loading = false;
+            return;
+        }
+
+        if (!CanAccess)
+        {
+            loading = false;
+            return;
+        }
+
+        await LoadMedications();
+    }
+
+
+    private async Task LoadMedications()
+    {
+        if (!CanAccess)
+        {
+            return;
+        }
+
+        loading = true;
+        errorMessage = string.Empty;
+
+        try
+        {
+            medications =
+                (await MedicationApiService.GetAllAsync())
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            errorMessage =
+                $"Unable to load medications: {ex.Message}";
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+
+    private void OpenAddForm()
+    {
+        if (!CanManage || isSaving)
+        {
+            return;
+        }
+
+        errorMessage = string.Empty;
+        deleteWarningMessage = string.Empty;
+        formErrorMessage = string.Empty;
+        successMessage = string.Empty;
+
+        editingMedicationId = null;
+
+        medicationModel =
+            new MedicationCreateRequest
+            {
+                MedicationName = string.Empty,
+                Dosage = string.Empty,
+                Description = string.Empty,
+                IsAvailable = true
+            };
+
+        showForm = true;
+    }
+
+
+    private void OpenEditForm(
+        MedicationResponse medication)
+    {
+        if (!CanManage || isSaving)
+        {
+            return;
+        }
+
+        errorMessage = string.Empty;
+        deleteWarningMessage = string.Empty;
+        formErrorMessage = string.Empty;
+        successMessage = string.Empty;
+
+        editingMedicationId =
+            medication.MedicationId;
+
+        medicationModel =
+            new MedicationCreateRequest
+            {
+                MedicationName =
+                    medication.MedicationName,
+
+                Dosage =
+                    medication.Dosage,
+
+                Description =
+                    medication.Description,
+
+                IsAvailable =
+                    medication.IsAvailable
+            };
+
+        showForm = true;
+    }
+
+
+    private void CancelForm()
+    {
+        if (isSaving)
+        {
+            return;
+        }
+
+        showForm = false;
+        editingMedicationId = null;
+        formErrorMessage = string.Empty;
+
+        medicationModel =
+            new MedicationCreateRequest();
+    }
+
+
+    private async Task SaveMedication()
+    {
+        if (!CanManage || isSaving)
+        {
+            return;
+        }
+
+        errorMessage = string.Empty;
+        deleteWarningMessage = string.Empty;
+        formErrorMessage = string.Empty;
+        successMessage = string.Empty;
+
+        if (string.IsNullOrWhiteSpace(
+            medicationModel.MedicationName))
+        {
+            formErrorMessage =
+                "Please enter a medication name.";
+
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(
+            medicationModel.Dosage))
+        {
+            formErrorMessage =
+                "Please enter the medication dosage.";
+
+            return;
+        }
+
+        isSaving = true;
+
+        try
+        {
+            if (editingMedicationId == null)
+            {
+                await MedicationApiService
+                    .CreateAsync(medicationModel);
+
+                successMessage =
+                    "Medication added successfully.";
+            }
+            else
+            {
+                var updateRequest =
+                    new MedicationUpdateRequest
+                    {
+                        MedicationName =
+                            medicationModel.MedicationName,
+
+                        Dosage =
+                            medicationModel.Dosage,
+
+                        Description =
+                            medicationModel.Description,
+
+                        IsAvailable =
+                            medicationModel.IsAvailable
+                    };
+
+                await MedicationApiService
+                    .UpdateAsync(
+                        editingMedicationId.Value,
+                        updateRequest);
+
+                successMessage =
+                    "Medication updated successfully.";
+            }
+
+            showForm = false;
+            editingMedicationId = null;
+
+            medicationModel =
+                new MedicationCreateRequest();
+
+            await LoadMedications();
+        }
+        catch (Exception ex)
+        {
+            formErrorMessage =
+                $"Unable to save medication: {ex.Message}";
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+
+    private async Task DeleteMedication(
+        int medicationId)
+    {
+        if (!IsAdmin || medicationId <= 0)
+        {
+            return;
+        }
+
+        errorMessage = string.Empty;
+        deleteWarningMessage = string.Empty;
+        successMessage = string.Empty;
+
+        try
+        {
+            await MedicationApiService
+                .DeleteAsync(medicationId);
+
+            successMessage =
+                "Medication deleted successfully.";
+
+            await LoadMedications();
+        }
+        catch (Exception ex)
+        {
+            deleteWarningMessage = ex.Message;
+        }
+    }
+
+
+    private void ShowDeleteConfirmation(
+        int medicationId,
+        string medicationName)
+    {
+        if (!IsAdmin || isSaving)
+        {
+            return;
+        }
+
+        errorMessage = string.Empty;
+        deleteWarningMessage = string.Empty;
+        successMessage = string.Empty;
+
+        medicationToDeleteId = medicationId;
+        medicationToDeleteName = medicationName;
+
+        showDeleteConfirmation = true;
+    }
+
+
+    private async Task ConfirmDeleteMedication()
+    {
+        if (!IsAdmin ||
+            medicationToDeleteId <= 0 ||
+            isSaving)
+        {
+            return;
+        }
+
+        isSaving = true;
+
+        try
+        {
+            await DeleteMedication(
+                medicationToDeleteId);
+        }
+        finally
+        {
+            isSaving = false;
+
+            showDeleteConfirmation = false;
+
+            medicationToDeleteId = 0;
+
+            medicationToDeleteName =
+                string.Empty;
+        }
+    }
+
+
+    private void CancelDeleteMedication()
+    {
+        if (isSaving)
+        {
+            return;
+        }
+
+        showDeleteConfirmation = false;
+
+        medicationToDeleteId = 0;
+
+        medicationToDeleteName =
+            string.Empty;
+    }
+}
